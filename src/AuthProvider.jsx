@@ -9,7 +9,6 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-// Helper: race a promise against a timeout
 function withTimeout(promise, ms) {
   return Promise.race([
     promise,
@@ -22,34 +21,42 @@ export default function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const loadProfile = async (u) => {
+    try {
+      const ref = doc(db, "users", u.uid);
+      const snap = await withTimeout(getDoc(ref), 5000);
+      if (snap.exists()) {
+        const data = snap.data();
+        setProfile(data);
+        return data;
+      }
+      // New user — check if any admin exists
+      const adminQuery = query(collection(db, "users"), where("role", "==", "admin"));
+      const adminSnap = await withTimeout(getDocs(adminQuery), 5000);
+      const role = adminSnap.empty ? "admin" : "company";
+      const newProfile = {
+        email: u.email,
+        role,
+        company: null,
+        createdAt: new Date().toISOString(),
+      };
+      await withTimeout(setDoc(ref, newProfile), 5000);
+      setProfile(newProfile);
+      return newProfile;
+    } catch (err) {
+      console.error("Profile error:", err);
+      // Fallback so user isn't stuck
+      const fallback = { email: u.email, role: "company", company: null };
+      setProfile(fallback);
+      return fallback;
+    }
+  };
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        try {
-          const ref = doc(db, "users", u.uid);
-          const snap = await withTimeout(getDoc(ref), 8000);
-          if (snap.exists()) {
-            setProfile(snap.data());
-          } else {
-            // New user — check if any admin exists
-            const adminQuery = query(collection(db, "users"), where("role", "==", "admin"));
-            const adminSnap = await withTimeout(getDocs(adminQuery), 8000);
-            const role = adminSnap.empty ? "admin" : "company";
-            const newProfile = {
-              email: u.email,
-              role,
-              company: null,
-              createdAt: new Date().toISOString(),
-            };
-            await withTimeout(setDoc(ref, newProfile), 8000);
-            setProfile(newProfile);
-          }
-        } catch (err) {
-          console.error("Profile fetch error:", err);
-          // Fallback: let user in as company if Firestore is unreachable
-          setProfile({ email: u.email, role: "company", company: null });
-        }
+        await loadProfile(u);
       } else {
         setProfile(null);
       }
@@ -60,11 +67,15 @@ export default function AuthProvider({ children }) {
 
   const logout = () => signOut(auth);
 
+  const refreshProfile = async () => {
+    if (user) await loadProfile(user);
+  };
+
   const updateProfile = async (data) => {
     if (!user) return;
     try {
       const ref = doc(db, "users", user.uid);
-      await withTimeout(setDoc(ref, data, { merge: true }), 8000);
+      await withTimeout(setDoc(ref, data, { merge: true }), 5000);
       setProfile((prev) => ({ ...prev, ...data }));
     } catch (err) {
       console.error("Profile update error:", err);
@@ -72,7 +83,7 @@ export default function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, logout, updateProfile, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

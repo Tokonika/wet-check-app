@@ -6,17 +6,17 @@ import AdminDashboard from "./AdminDashboard";
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
-  const [adminView, setAdminView] = useState("dashboard"); // "dashboard" | "app"
+  const [adminView, setAdminView] = useState("dashboard");
 
   if (loading) {
     return (
       <div style={{
-        minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+        minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         background: "linear-gradient(135deg, #1a3a5c, #2d6da8)", color: "#fff",
         fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        fontSize: 18, fontWeight: 600,
       }}>
-        Loading...
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Wet Check App</div>
+        <div style={{ fontSize: 14, opacity: 0.8 }}>Loading...</div>
       </div>
     );
   }
