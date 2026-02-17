@@ -16,14 +16,71 @@ const MAINLINE_MATERIALS = ["PVC", "Copper", "Poly", "Galvanized"];
 const WATER_SOURCES = ["City Water", "Well", "Reclaim/Recycled", "Canal", "Lake/Pond", "River", "Rainwater Harvest", "Mixed", "Other"];
 const MAX_ZONES = 120;
 
+// ─── IRRIGATION PARTS / FITTINGS ───
+const PARTS_CATEGORIES = {
+  "Spray Heads": [
+    "4\" Pop-up Spray Head", "6\" Pop-up Spray Head", "12\" Pop-up Spray Head",
+    "Adjustable Spray Nozzle", "Fixed Spray Nozzle", "Strip Nozzle",
+    "Side Strip Nozzle", "Center Strip Nozzle", "Spray Body Only",
+  ],
+  "Rotors": [
+    "4\" Pop-up Rotor", "6\" Pop-up Rotor", "12\" Pop-up Rotor",
+    "Rotor Nozzle Set", "Gear Drive Rotor", "Impact Rotor",
+  ],
+  "MP Rotators": [
+    "MP Rotator 1000 (8-15ft)", "MP Rotator 2000 (13-21ft)", "MP Rotator 3000 (22-30ft)",
+    "MP Rotator 3500 (31-35ft)", "MP Rotator Left Corner", "MP Rotator Right Corner",
+    "MP Rotator Side Strip", "MP Rotator Center Strip",
+  ],
+  "Drip / Micro": [
+    "Drip Emitter (1 GPH)", "Drip Emitter (2 GPH)", "Drip Emitter (4 GPH)",
+    "Drip Tubing 1/2\"", "Drip Tubing 1/4\"", "Micro Spray",
+    "Micro Bubbler", "Drip Line (per ft)", "Emitter Tubing (per ft)",
+    "Pressure Compensating Emitter", "Transfer Barb", "Drip Stake",
+  ],
+  "Valves": [
+    "Electric Valve 3/4\"", "Electric Valve 1\"", "Electric Valve 1.5\"", "Electric Valve 2\"",
+    "Ball Valve 3/4\"", "Ball Valve 1\"", "Ball Valve 1.5\"", "Ball Valve 2\"",
+    "Gate Valve", "Anti-Siphon Valve", "Master Valve",
+    "Valve Solenoid", "Valve Diaphragm", "Valve Box Std", "Valve Box Jumbo",
+  ],
+  "PVC Fittings": [
+    "PVC Elbow 90° 3/4\"", "PVC Elbow 90° 1\"", "PVC Elbow 90° 1.5\"", "PVC Elbow 90° 2\"",
+    "PVC Tee 3/4\"", "PVC Tee 1\"", "PVC Tee 1.5\"", "PVC Tee 2\"",
+    "PVC Coupling 3/4\"", "PVC Coupling 1\"", "PVC Coupling 1.5\"", "PVC Coupling 2\"",
+    "PVC Reducer", "PVC Cap", "PVC Male Adapter", "PVC Female Adapter",
+    "PVC Cross", "PVC Union", "Slip Fix Coupling",
+  ],
+  "Pipe": [
+    "PVC Pipe 3/4\" (per ft)", "PVC Pipe 1\" (per ft)", "PVC Pipe 1.5\" (per ft)", "PVC Pipe 2\" (per ft)",
+    "Funny Pipe / Swing Pipe (per ft)", "Poly Pipe 3/4\" (per ft)", "Poly Pipe 1\" (per ft)",
+  ],
+  "Swing Assemblies": [
+    "Swing Joint Assembly", "Swing Pipe Elbow", "Cutoff Riser 1/2\"",
+    "Cutoff Riser 3/4\"", "Marlex Elbow", "Street Elbow",
+  ],
+  "Wire & Electrical": [
+    "Irrigation Wire (per ft)", "Waterproof Wire Connector (DBY)",
+    "Waterproof Wire Connector (DBR)", "Wire Splice Kit",
+    "Solenoid 24V AC", "Rain Sensor", "Flow Sensor",
+  ],
+  "Backflow / Misc": [
+    "PVB Backflow Preventer", "RPZ Backflow Preventer", "DCV Backflow Preventer",
+    "PVC Cement / Glue", "Teflon Tape", "Pipe Clamp", "Hose Clamp",
+    "Pressure Regulator", "Filter / Strainer", "Quick Coupler Valve",
+    "Quick Coupler Key", "Drain Valve", "Air Relief Valve",
+  ],
+};
+
 const makeZone = (id) => ({
   id, type: "", headType: "", heads: "", psi: "", ok: false,
   leak: false, broken: false, clogged: false, misaligned: false,
   notes: "", area: "", controllerId: 1,
   beforeImg: null, afterImg: null,
-  lat: null, lng: null,
+  lat: null, lng: null, locationImg: null,
+  materials: [], // [{ part: "4\" Pop-up Spray Head", qty: 3 }, ...]
 });
-const makeController = (id) => ({ id, make: "", type: "", location: "", zoneFrom: "", zoneTo: "", lat: null, lng: null });
+const makeController = (id) => ({ id, make: "", type: "", location: "", zoneFrom: "", zoneTo: "", lat: null, lng: null, locationImg: null });
 const makeBackflow = (id) => ({ id, type: "", condition: "" });
 
 const BASE_OBS = [
@@ -157,17 +214,53 @@ function PhotoUpload({ label, src, onUpload, onRemove }) {
   );
 }
 
-function LocationBtn({ lat, lng, onLocate, locating }) {
+function LocationBtn({ lat, lng, onLocate, locating, locationImg, onPhotoUpload, onPhotoRemove }) {
+  const photoRef = useRef(null);
+  const handlePhoto = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) { if (w > h) { h = Math.round(h * MAX / w); w = MAX; } else { w = Math.round(w * MAX / h); h = MAX; } }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        onPhotoUpload(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-      <button onClick={onLocate} disabled={locating} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #1a5632", background: locating ? "#eee" : "#e8f5ec", color: "#1a5632", fontSize: 13, fontWeight: 600, cursor: locating ? "wait" : "pointer" }}>
-        {locating ? "Locating..." : "📍 Get Location"}
-      </button>
-      {lat && (
-        <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1a5632" }}>
-          View Map
-        </a>
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <button onClick={onLocate} disabled={locating} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #1a5632", background: locating ? "#eee" : "#e8f5ec", color: "#1a5632", fontSize: 13, fontWeight: 600, cursor: locating ? "wait" : "pointer" }}>
+          {locating ? "Locating..." : "📍 Get Location"}
+        </button>
+        {lat && (
+          <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1a5632" }}>
+            View Map
+          </a>
+        )}
+        {lat && onPhotoUpload && (
+          <button onClick={() => photoRef.current?.click()} style={{ padding: "4px 8px", borderRadius: 6, border: "1.5px solid #1a5632", background: "#e8f5ec", color: "#1a5632", fontSize: 12, cursor: "pointer" }}>
+            📷
+          </button>
+        )}
+      </div>
+      {lat && <div style={{ fontSize: 10, color: "#888", marginTop: 3 }}>Lat: {lat.toFixed(6)}, Lng: {lng.toFixed(6)}</div>}
+      {locationImg && (
+        <div style={{ position: "relative", display: "inline-block", marginTop: 6 }}>
+          <img src={locationImg} alt="Location" style={{ width: "100%", maxWidth: 160, borderRadius: 8, border: "1.5px solid #ddd" }} />
+          <button onClick={onPhotoRemove} style={{ position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: "50%", border: "none", background: "#d32f2f", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", lineHeight: "22px", padding: 0 }}>✕</button>
+        </div>
       )}
+      {onPhotoUpload && <input ref={photoRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ display: "none" }} />}
     </div>
   );
 }
@@ -189,12 +282,21 @@ export default function WetCheckApp() {
   const [propertyType, setPropertyType] = useState(null);
   const [step, setStep] = useState(0);
   const topRef = useRef(null);
+  const logoInputRef = useRef(null);
+
+  // Company branding (persisted in localStorage)
+  const [company, setCompany] = useState(() => {
+    try { const saved = localStorage.getItem("wetcheck_company"); return saved ? JSON.parse(saved) : null; } catch { return null; }
+  });
+  const [showCompanySetup, setShowCompanySetup] = useState(false);
+  const [companyDraft, setCompanyDraft] = useState({ name: "", phone: "", website: "", logo: null });
+  const saveCompany = () => { localStorage.setItem("wetcheck_company", JSON.stringify(companyDraft)); setCompany(companyDraft); setShowCompanySetup(false); };
 
   const [client, setClient] = useState({
     name: "", address: "", city: "", phone: "", email: "", manager: "",
     date: new Date().toISOString().slice(0, 10), workOrder: "",
     propertySubType: "", buildingName: "", numBuildings: "", irrigatedAcreage: "",
-    lat: null, lng: null,
+    lat: null, lng: null, locationImg: null,
   });
   const [locating, setLocating] = useState(null); // null or string key like "client", "pump", "zone-3"
 
@@ -203,7 +305,7 @@ export default function WetCheckApp() {
     waterSource: "", meterSize: "", staticPSI: "", workingPSI: "", flowRate: "",
     rainSensor: "", pumpStation: "",
     mainlineSize: "", mainlineMaterial: "", masterValve: "", flowSensor: "", poc: "",
-    pumpLat: null, pumpLng: null,
+    pumpLat: null, pumpLng: null, pumpLocationImg: null,
   });
 
   const [controllers, setControllers] = useState([makeController(1)]);
@@ -272,6 +374,7 @@ export default function WetCheckApp() {
   const fetchPumpLocation = () => {
     getGPS("pump", (lat, lng) => setSystem((p) => ({ ...p, pumpLat: lat, pumpLng: lng })));
   };
+  const setPumpLocationImg = (img) => setSystem((p) => ({ ...p, pumpLocationImg: img }));
 
   const fetchZoneLocation = (idx, zoneId) => {
     getGPS(`zone-${zoneId}`, (lat, lng) => {
@@ -347,17 +450,23 @@ export default function WetCheckApp() {
     const obsEntries = [...BASE_OBS, ...(isCommercial ? COMMERCIAL_OBS : [])];
     const obsLines = obsEntries.filter(([k]) => observations[k]).map(([, l]) => `• ${l}`);
 
-    let report = `═══════════════════════\nIRRIGATION SOLUTION GROUP\n  ${typeLabel} WET CHECK REPORT\n═══════════════════════\n\n📋 CLIENT INFO\nClient: ${client.name}\nAddress: ${client.address}, ${client.city}\nPhone: ${client.phone}\nDate: ${client.date}\nWork Order: ${client.workOrder}`;
+    let report = `═══════════════════════\n${companyName}\n  ${typeLabel} WET CHECK REPORT\n═══════════════════════\n\n📋 CLIENT INFO\nClient: ${client.name}\nAddress: ${client.address}, ${client.city}${client.lat ? `\nLocation: ${client.lat.toFixed(6)}, ${client.lng.toFixed(6)} | https://maps.google.com/?q=${client.lat},${client.lng}` : ""}\nPhone: ${client.phone}\nDate: ${client.date}\nWork Order: ${client.workOrder}`;
     if (isCommercial) report += `\nProperty Type: ${client.propertySubType}\nBuilding/Complex: ${client.buildingName}\nBuildings/Areas: ${client.numBuildings}\nIrrigated Acreage: ${client.irrigatedAcreage}`;
     report += `\n\n⚙️ SYSTEM OVERVIEW\nControllers:\n${ctrlLines}\nWater Source: ${system.waterSource}\nStatic PSI: ${system.staticPSI} | Working PSI: ${system.workingPSI}\nFlow: ${system.flowRate} GPM\nBackflow Devices:\n${bfLines}\nRain Sensor: ${system.rainSensor}\nPump: ${system.pumpStation}`;
     if (isCommercial) report += `\nMainline: ${system.mainlineSize} ${system.mainlineMaterial}\nMaster Valve: ${system.masterValve}\nFlow Sensor: ${system.flowSensor}\nPoints of Connection: ${system.poc}`;
-    report += `\n\n💧 ZONE-BY-ZONE CHECK\n${zoneLines}\n\n🔍 OBSERVATIONS\n${obsLines.length ? obsLines.join("\n") : "No issues noted"}\n\n📝 RECOMMENDATIONS\n${recommendations || "None"}\n\n⚡ PRIORITY: ${priority || "N/A"}\n💰 Est. Cost: ${estCost || "N/A"}\n⏱️ Est. Time: ${estTime || "N/A"}\n\nTechnician: ${techName}\n\n═══════════════════════\nwww.irrigationssolutions.com\nHablamos Español\n═══════════════════════`;
+    // Aggregate materials across all zones
+    const allMaterials = {};
+    zones.slice(0, activeZoneCount).forEach((z) => { z.materials.filter((m) => m.part).forEach((m) => { allMaterials[m.part] = (allMaterials[m.part] || 0) + (Number(m.qty) || 1); }); });
+    const matLines = Object.entries(allMaterials).map(([part, qty]) => `  ${qty}x ${part}`);
+    report += `\n\n💧 ZONE-BY-ZONE CHECK\n${zoneLines}`;
+    if (matLines.length > 0) report += `\n\n🔧 MATERIALS NEEDED (TOTAL)\n${matLines.join("\n")}`;
+    report += `\n\n🔍 OBSERVATIONS\n${obsLines.length ? obsLines.join("\n") : "No issues noted"}\n\n📝 RECOMMENDATIONS\n${recommendations || "None"}\n\n⚡ PRIORITY: ${priority || "N/A"}\n💰 Est. Cost: ${estCost || "N/A"}\n⏱️ Est. Time: ${estTime || "N/A"}\n\nTechnician: ${techName}\n\n═══════════════════════\n${companyWebsite}${companyPhone ? " | " + companyPhone : ""}\nHablamos Español\n═══════════════════════`;
     return report;
   };
 
   const shareWhatsApp = async () => {
     try {
-      const data = { propertyType, client, system, controllers, backflows, zones, activeZoneCount, observations, recommendations, priority, estCost, estTime, techName, isCommercial, returnBlob: true };
+      const data = { propertyType, client, system, controllers, backflows, zones, activeZoneCount, observations, recommendations, priority, estCost, estTime, techName, isCommercial, company, returnBlob: true };
       const { blob, fileName } = generatePDF(data);
       const file = new File([blob], fileName, { type: "application/pdf" });
 
@@ -377,20 +486,85 @@ export default function WetCheckApp() {
     catch (err) { alert("Copy error: " + err.message); }
   };
   const downloadPDF = () => {
-    try { generatePDF({ propertyType, client, system, controllers, backflows, zones, activeZoneCount, observations, recommendations, priority, estCost, estTime, techName, isCommercial }); }
+    try { generatePDF({ propertyType, client, system, controllers, backflows, zones, activeZoneCount, observations, recommendations, priority, estCost, estTime, techName, isCommercial, company }); }
     catch (err) { alert("PDF error: " + err.message); }
   };
 
   // ─── PROPERTY TYPE SELECTOR ───
 
+  const companyName = company?.name || "IRRIGATION SOLUTION GROUP";
+  const companyWebsite = company?.website || "www.irrigationssolutions.com";
+  const companyPhone = company?.phone || "";
+
+  // ─── COMPANY SETUP SCREEN ───
+  if (showCompanySetup) {
+    const handleLogo = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        img.onload = () => {
+          const MAX = 400;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) { if (w > h) { h = Math.round(h * MAX / w); w = MAX; } else { w = Math.round(w * MAX / h); h = MAX; } }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          setCompanyDraft((p) => ({ ...p, logo: canvas.toDataURL("image/png", 0.9) }));
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+      e.target.value = "";
+    };
+    return (
+      <div style={S.container} ref={topRef}>
+        <div style={S.header}>
+          <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.5 }}>Company Setup</div>
+          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>Your branding on all reports</div>
+        </div>
+        <div style={{ padding: 20, flex: 1 }}>
+          <Field label="Company Name" value={companyDraft.name} onChange={(v) => setCompanyDraft((p) => ({ ...p, name: v }))} placeholder="Your Company Name" />
+          <Field label="Phone Number" value={companyDraft.phone} onChange={(v) => setCompanyDraft((p) => ({ ...p, phone: v }))} placeholder="(555) 123-4567" />
+          <Field label="Website" value={companyDraft.website} onChange={(v) => setCompanyDraft((p) => ({ ...p, website: v }))} placeholder="www.yourcompany.com" />
+          <div style={{ marginBottom: 14 }}>
+            <label style={S.label}>Company Logo</label>
+            {companyDraft.logo ? (
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <img src={companyDraft.logo} alt="Logo" style={{ maxWidth: 200, maxHeight: 80, borderRadius: 8, border: "1.5px solid #ddd" }} />
+                <button onClick={() => setCompanyDraft((p) => ({ ...p, logo: null }))} style={{ position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: "50%", border: "none", background: "#d32f2f", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", lineHeight: "22px", padding: 0 }}>✕</button>
+              </div>
+            ) : (
+              <button onClick={() => logoInputRef.current?.click()} style={{ width: "100%", padding: 16, borderRadius: 8, border: "2px dashed #ccc", background: "#fafafa", cursor: "pointer", color: "#888", fontSize: 14 }}>
+                📷 Tap to upload logo
+              </button>
+            )}
+            <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogo} style={{ display: "none" }} />
+          </div>
+          <button onClick={saveCompany} style={{ ...S.navBtn, background: "#1a5632", width: "100%", textAlign: "center", marginTop: 10 }}>Save Company Info</button>
+          <button onClick={() => setShowCompanySetup(false)} style={{ ...S.navBtn, background: "#666", width: "100%", textAlign: "center", marginTop: 8 }}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!propertyType) {
     return (
       <div style={S.container} ref={topRef}>
         <div style={S.header}>
-          <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.5 }}>IRRIGATION SOLUTION GROUP</div>
-          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>Wet Check Inspection App</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.5 }}>{companyName}</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>Wet Check Inspection App</div>
+            </div>
+            <button onClick={() => { setCompanyDraft(company || { name: "", phone: "", website: "", logo: null }); setShowCompanySetup(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
+              ⚙️ Setup
+            </button>
+          </div>
         </div>
         <div style={{ padding: 20, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}>
+          {company?.logo && <div style={{ textAlign: "center", marginBottom: 8 }}><img src={company.logo} alt="Logo" style={{ maxWidth: 180, maxHeight: 70 }} /></div>}
           <p style={{ textAlign: "center", fontSize: 16, fontWeight: 700, color: "#333", marginBottom: 8 }}>Select Property Type</p>
           {[
             { key: "residential", icon: "🏠", label: "Residential", desc: "Single-family homes, townhomes" },
@@ -429,9 +603,20 @@ export default function WetCheckApp() {
               {locating === "client" ? "..." : "📍"}
             </button>
           </div>
-          {client.lat && <a href={`https://www.google.com/maps?q=${client.lat},${client.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1a5632", marginTop: 4, display: "inline-block" }}>
-            View on Google Maps
-          </a>}
+          {client.lat && <div style={{ marginTop: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <a href={`https://www.google.com/maps?q=${client.lat},${client.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1a5632" }}>View on Google Maps</a>
+              <button onClick={() => { const ref = document.getElementById("clientLocPhoto"); ref?.click(); }} style={{ padding: "3px 8px", borderRadius: 6, border: "1.5px solid #1a5632", background: "#e8f5ec", color: "#1a5632", fontSize: 11, cursor: "pointer" }}>📷 Photo</button>
+            </div>
+            <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>Lat: {client.lat.toFixed(6)}, Lng: {client.lng.toFixed(6)}</div>
+            {client.locationImg && (
+              <div style={{ position: "relative", display: "inline-block", marginTop: 6 }}>
+                <img src={client.locationImg} alt="Location" style={{ width: "100%", maxWidth: 160, borderRadius: 8, border: "1.5px solid #ddd" }} />
+                <button onClick={() => updateClient("locationImg", null)} style={{ position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: "50%", border: "none", background: "#d32f2f", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", lineHeight: "22px", padding: 0 }}>✕</button>
+              </div>
+            )}
+            <input id="clientLocPhoto" type="file" accept="image/*" capture="environment" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => { const img = new Image(); img.onload = () => { const MAX = 800; let w = img.width, h = img.height; if (w > MAX || h > MAX) { if (w > h) { h = Math.round(h * MAX / w); w = MAX; } else { w = Math.round(w * MAX / h); h = MAX; } } const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h); updateClient("locationImg", c.toDataURL("image/jpeg", 0.7)); }; img.src = ev.target.result; }; reader.readAsDataURL(file); e.target.value = ""; }} style={{ display: "none" }} />
+          </div>}
         </div>
         <Field label="City / Zip" value={client.city} onChange={(v) => updateClient("city", v)} placeholder="Fort Lauderdale, 33301" />
         <div style={S.grid2}>
@@ -468,7 +653,7 @@ export default function WetCheckApp() {
                   <Field label="Zone From" value={ctrl.zoneFrom} onChange={(v) => updateController(idx, "zoneFrom", v)} type="number" placeholder="1" />
                   <Field label="Zone To" value={ctrl.zoneTo} onChange={(v) => updateController(idx, "zoneTo", v)} type="number" placeholder="12" />
                 </div>
-                <LocationBtn lat={ctrl.lat} lng={ctrl.lng} locating={locating === `ctrl-${ctrl.id}`} onLocate={() => fetchControllerLocation(idx, ctrl.id)} />
+                <LocationBtn lat={ctrl.lat} lng={ctrl.lng} locating={locating === `ctrl-${ctrl.id}`} onLocate={() => fetchControllerLocation(idx, ctrl.id)} locationImg={ctrl.locationImg} onPhotoUpload={(img) => updateController(idx, "locationImg", img)} onPhotoRemove={() => updateController(idx, "locationImg", null)} />
               </div>}
             </div>
           );
@@ -518,7 +703,7 @@ export default function WetCheckApp() {
           <Dropdown label="Rain Sensor" value={system.rainSensor} onChange={(v) => updateSystem("rainSensor", v)} options={["Working", "Not Working", "None Installed"]} />
           <Dropdown label="Pump Station" value={system.pumpStation} onChange={(v) => updateSystem("pumpStation", v)} options={["Yes", "No"]} />
           {system.pumpStation === "Yes" && (
-            <LocationBtn lat={system.pumpLat} lng={system.pumpLng} locating={locating === "pump"} onLocate={fetchPumpLocation} />
+            <LocationBtn lat={system.pumpLat} lng={system.pumpLng} locating={locating === "pump"} onLocate={fetchPumpLocation} locationImg={system.pumpLocationImg} onPhotoUpload={setPumpLocationImg} onPhotoRemove={() => setPumpLocationImg(null)} />
           )}
         </>}
         {isCommercial && <>
@@ -572,6 +757,7 @@ export default function WetCheckApp() {
                       <span style={{ fontSize: 12, color: "#888" }}>{zone.type || ""}</span>
                       {zone.area ? <span style={{ fontSize: 11, color: "#aaa" }}>• {zone.area}</span> : null}
                       {zone.lat && <span style={{ fontSize: 11, color: "#1a5632" }}>📍</span>}
+                      {zone.materials.length > 0 && <span style={{ fontSize: 11, color: "#1a5632" }}>🔧{zone.materials.length}</span>}
                       {(zone.beforeImg || zone.afterImg) && <span style={{ fontSize: 11, color: "#1a5632" }}>📷</span>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -595,7 +781,7 @@ export default function WetCheckApp() {
                       <input type="number" placeholder="# Heads" value={zone.heads} onChange={(e) => updateZone(idx, "heads", e.target.value)} style={S.smallInput} />
                       <input type="number" placeholder="PSI" value={zone.psi} onChange={(e) => updateZone(idx, "psi", e.target.value)} style={S.smallInput} />
                     </div>
-                    <LocationBtn lat={zone.lat} lng={zone.lng} locating={locating === `zone-${zone.id}`} onLocate={() => fetchZoneLocation(idx, zone.id)} />
+                    <LocationBtn lat={zone.lat} lng={zone.lng} locating={locating === `zone-${zone.id}`} onLocate={() => fetchZoneLocation(idx, zone.id)} locationImg={zone.locationImg} onPhotoUpload={(img) => updateZone(idx, "locationImg", img)} onPhotoRemove={() => updateZone(idx, "locationImg", null)} />
                     {isCommercial && <div style={S.grid2}>
                       <input placeholder="Area / Location" value={zone.area} onChange={(e) => updateZone(idx, "area", e.target.value)} style={S.smallInput} />
                       <select value={zone.controllerId} onChange={(e) => updateZone(idx, "controllerId", Number(e.target.value))} style={S.smallInput}>
@@ -608,6 +794,30 @@ export default function WetCheckApp() {
                       ))}
                     </div>}
                     {(hasIssue || zone.notes) && <input placeholder="Notes on issues..." value={zone.notes} onChange={(e) => updateZone(idx, "notes", e.target.value)} style={{ ...S.smallInput, width: "100%", marginTop: 8 }} />}
+
+                    {/* Materials / Parts */}
+                    <div style={{ marginTop: 10, borderTop: "1px solid #eee", paddingTop: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#555" }}>🔧 Materials Needed</span>
+                        <span style={{ fontSize: 10, color: "#888" }}>{zone.materials.length} item{zone.materials.length !== 1 ? "s" : ""}</span>
+                      </div>
+                      {zone.materials.map((mat, mi) => (
+                        <div key={mi} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 5 }}>
+                          <select value={mat.part} onChange={(e) => { const mats = [...zone.materials]; mats[mi] = { ...mats[mi], part: e.target.value }; updateZone(idx, "materials", mats); }} style={{ ...S.smallInput, flex: 1, fontSize: 12 }}>
+                            <option value="">— Select Part —</option>
+                            {Object.entries(PARTS_CATEGORIES).map(([cat, items]) => (
+                              <optgroup key={cat} label={cat}>
+                                {items.map((item) => <option key={item} value={item}>{item}</option>)}
+                              </optgroup>
+                            ))}
+                          </select>
+                          <input type="number" min="1" value={mat.qty} onChange={(e) => { const mats = [...zone.materials]; mats[mi] = { ...mats[mi], qty: e.target.value }; updateZone(idx, "materials", mats); }} placeholder="Qty" style={{ ...S.smallInput, width: 52, textAlign: "center", fontSize: 12 }} />
+                          <button onClick={() => { const mats = zone.materials.filter((_, i) => i !== mi); updateZone(idx, "materials", mats); }} style={{ ...S.removeBtn, padding: "2px 6px", fontSize: 14 }}>✕</button>
+                        </div>
+                      ))}
+                      <button onClick={() => updateZone(idx, "materials", [...zone.materials, { part: "", qty: 1 }])} style={{ ...S.addBtn, padding: 8, fontSize: 12, marginTop: 4 }}>+ Add Part</button>
+                    </div>
+
                     <div style={{ display: "flex", gap: 12, marginTop: 10, justifyContent: "center" }}>
                       <PhotoUpload label="Before" src={zone.beforeImg} onUpload={(data) => updateZone(idx, "beforeImg", data)} onRemove={() => updateZone(idx, "beforeImg", null)} />
                       <PhotoUpload label="After" src={zone.afterImg} onUpload={(data) => updateZone(idx, "afterImg", data)} onRemove={() => updateZone(idx, "afterImg", null)} />
@@ -672,7 +882,8 @@ export default function WetCheckApp() {
         <div style={{ background: "#fff", borderRadius: 12, padding: "24px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)", border: "1px solid #e0e0e0", marginBottom: 16 }}>
           {/* Header */}
           <div style={{ textAlign: "center", borderBottom: "3px solid #1a5632", paddingBottom: 12, marginBottom: 16 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a5632", letterSpacing: 1 }}>IRRIGATION SOLUTION GROUP</div>
+            {company?.logo && <img src={company.logo} alt="Logo" style={{ maxWidth: 150, maxHeight: 60, marginBottom: 6 }} />}
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a5632", letterSpacing: 1 }}>{companyName}</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#555", marginTop: 4 }}>{isCommercial ? "Commercial" : "Residential"} Wet Check Inspection Report</div>
             {isCommercial && client.propertySubType && <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{client.propertySubType}</div>}
             <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{client.date}</div>
@@ -683,7 +894,7 @@ export default function WetCheckApp() {
             <div style={rS.heading}>Client Information</div>
             <RRow label="Client" value={client.name} />
             <RRow label="Address" value={[client.address, client.city].filter(Boolean).join(", ")} />
-            {client.lat && <div style={rS.row}><span style={rS.lbl}>Location</span><a href={`https://www.google.com/maps?q=${client.lat},${client.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Google Maps</a></div>}
+            {client.lat && <div style={rS.row}><span style={rS.lbl}>Location ({client.lat.toFixed(6)}, {client.lng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${client.lat},${client.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Google Maps</a></div>}
             <RRow label="Phone" value={client.phone} />
             <RRow label="Email" value={client.email} />
             <RRow label={isCommercial ? "Management Co." : "Property Manager"} value={client.manager} />
@@ -701,7 +912,7 @@ export default function WetCheckApp() {
             {controllers.map((c) => (
               <div key={c.id}>
                 <RRow label={`Controller ${c.id}`} value={[c.make, c.type, c.location].filter(Boolean).join(" — ") || "—"} />
-                {c.lat && <div style={rS.row}><span style={rS.lbl}>  Location</span><a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Maps</a></div>}
+                {c.lat && <div style={rS.row}><span style={rS.lbl}>  Location ({c.lat.toFixed(6)}, {c.lng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Maps</a></div>}
               </div>
             ))}
             <RRow label="Water Source" value={system.waterSource} />
@@ -711,7 +922,7 @@ export default function WetCheckApp() {
             {backflows.map((b) => <RRow key={b.id} label={`Backflow ${b.id}`} value={[b.type, b.condition].filter(Boolean).join(" — ") || "—"} />)}
             <RRow label="Rain Sensor" value={system.rainSensor} />
             <RRow label="Pump Station" value={system.pumpStation} />
-            {system.pumpLat && <div style={rS.row}><span style={rS.lbl}>Pump Location</span><a href={`https://www.google.com/maps?q=${system.pumpLat},${system.pumpLng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Maps</a></div>}
+            {system.pumpLat && <div style={rS.row}><span style={rS.lbl}>Pump Location ({system.pumpLat.toFixed(6)}, {system.pumpLng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${system.pumpLat},${system.pumpLng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Maps</a></div>}
             {isCommercial && <>
               <RRow label="Mainline" value={[system.mainlineSize, system.mainlineMaterial].filter(Boolean).join(" ")} />
               <RRow label="Master Valve" value={system.masterValve} />
@@ -768,6 +979,35 @@ export default function WetCheckApp() {
             </div>
           </div>
 
+          {/* Materials Summary */}
+          {(() => {
+            const matMap = {};
+            activeZonesData.forEach((z) => { z.materials.filter((m) => m.part).forEach((m) => { matMap[m.part] = (matMap[m.part] || 0) + (Number(m.qty) || 1); }); });
+            const matEntries = Object.entries(matMap);
+            if (matEntries.length === 0) return null;
+            return (
+              <div style={rS.section}>
+                <div style={rS.heading}>Materials Needed</div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: "#1a5632", color: "#fff" }}>
+                      <th style={{ padding: "5px 8px", textAlign: "left" }}>Part / Fitting</th>
+                      <th style={{ padding: "5px 8px", textAlign: "center", width: 50 }}>Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matEntries.map(([part, qty]) => (
+                      <tr key={part} style={{ borderBottom: "1px solid #eee" }}>
+                        <td style={{ padding: "4px 8px" }}>{part}</td>
+                        <td style={{ padding: "4px 8px", textAlign: "center", fontWeight: 700 }}>{qty}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+
           {/* Observations */}
           {obsEntries.length > 0 && (
             <div style={rS.section}>
@@ -809,7 +1049,7 @@ export default function WetCheckApp() {
 
           {/* Footer */}
           <div style={{ textAlign: "center", marginTop: 16, paddingTop: 10, borderTop: "2px solid #1a5632" }}>
-            <div style={{ fontSize: 10, color: "#888" }}>www.irrigationssolutions.com | Hablamos Espanol</div>
+            <div style={{ fontSize: 10, color: "#888" }}>{companyWebsite}{companyPhone ? ` | ${companyPhone}` : ""} | Hablamos Espanol</div>
           </div>
         </div>
 
@@ -833,9 +1073,12 @@ export default function WetCheckApp() {
     <div style={S.container} ref={topRef}>
       <div style={S.header}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 0.5 }}>IRRIGATION SOLUTION GROUP</div>
-            <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{isCommercial ? "Commercial" : "Residential"} Wet Check</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {company?.logo && <img src={company.logo} alt="Logo" style={{ maxHeight: 30, maxWidth: 50, borderRadius: 4 }} />}
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 0.5 }}>{companyName}</div>
+              <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{isCommercial ? "Commercial" : "Residential"} Wet Check</div>
+            </div>
           </div>
           <button onClick={() => { setPropertyType(null); setStep(0); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Change</button>
         </div>

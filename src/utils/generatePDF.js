@@ -23,6 +23,7 @@ export default function generatePDF({
   estTime,
   techName,
   isCommercial,
+  company,
 }) {
   const doc = new jsPDF("p", "mm", "letter");
   const pageW = doc.internal.pageSize.getWidth();
@@ -42,7 +43,8 @@ export default function generatePDF({
       doc.line(margin, pageH - 18, pageW - margin, pageH - 18);
       doc.setFontSize(8);
       doc.setTextColor(...GRAY);
-      doc.text("www.irrigationssolutions.com | Hablamos Español", pageW / 2, pageH - 13, { align: "center" });
+      const footerText = [companyWebsite, companyPhone, "Hablamos Español"].filter(Boolean).join(" | ");
+      doc.text(footerText, pageW / 2, pageH - 13, { align: "center" });
       doc.text(`Page ${i} of ${pages}`, pageW - margin, pageH - 13, { align: "right" });
     }
   };
@@ -90,16 +92,24 @@ export default function generatePDF({
   // ─── HEADER ───
 
   const typeLabel = isCommercial ? "Commercial" : "Residential";
+  const companyName = company?.name || "IRRIGATION SOLUTION GROUP";
+  const companyWebsite = company?.website || "www.irrigationssolutions.com";
+  const companyPhone = company?.phone || "";
 
   doc.setFillColor(...GREEN);
   doc.rect(0, 0, pageW, 34, "F");
   doc.setFillColor(...LIGHT_GREEN);
   doc.rect(0, 34, pageW, 3, "F");
 
+  // Company logo in header
+  if (company?.logo) {
+    try { doc.addImage(company.logo, "PNG", margin, 4, 22, 22); } catch (_) { /* skip */ }
+  }
+
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...WHITE);
-  doc.text("IRRIGATION SOLUTION GROUP", pageW / 2, 14, { align: "center" });
+  doc.text(companyName, pageW / 2, 14, { align: "center" });
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
@@ -134,10 +144,17 @@ export default function generatePDF({
   if (client.lat && client.lng) {
     const mapsUrl = `https://www.google.com/maps?q=${client.lat},${client.lng}`;
     doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text(`Location: ${client.lat.toFixed(6)}, ${client.lng.toFixed(6)}`, margin, y);
     doc.setTextColor(...LIGHT_GREEN);
-    doc.text("View on Google Maps", margin, y);
-    doc.link(margin, y - 3, 40, 5, { url: mapsUrl });
-    y += 6;
+    doc.text("View on Google Maps", margin + 65, y);
+    doc.link(margin + 65, y - 3, 40, 5, { url: mapsUrl });
+    y += 5;
+    if (client.locationImg) {
+      checkPage(45);
+      try { doc.addImage(client.locationImg, "JPEG", margin, y, 50, 38); } catch (_) { /* skip */ }
+      y += 42;
+    }
   }
 
   // ─── CONTROLLERS ───
@@ -171,11 +188,19 @@ export default function generatePDF({
     const ctrlsWithLoc = controllers.filter((c) => c.lat && c.lng);
     if (ctrlsWithLoc.length > 0) {
       doc.setFontSize(8);
-      doc.setTextColor(...LIGHT_GREEN);
       ctrlsWithLoc.forEach((c) => {
-        doc.text(`Controller ${c.id} Location: View on Maps`, margin, y + 2);
-        doc.link(margin, y - 1, 60, 5, { url: `https://www.google.com/maps?q=${c.lat},${c.lng}` });
+        checkPage(50);
+        doc.setTextColor(...GRAY);
+        doc.text(`Controller ${c.id}: ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`, margin, y + 2);
+        doc.setTextColor(...LIGHT_GREEN);
+        doc.text("View on Maps", margin + 65, y + 2);
+        doc.link(margin + 65, y - 1, 35, 5, { url: `https://www.google.com/maps?q=${c.lat},${c.lng}` });
         y += 5;
+        if (c.locationImg) {
+          checkPage(45);
+          try { doc.addImage(c.locationImg, "JPEG", margin, y, 50, 38); } catch (_) { /* skip */ }
+          y += 42;
+        }
       });
       y += 2;
     }
@@ -202,10 +227,17 @@ export default function generatePDF({
 
   if (system.pumpLat && system.pumpLng) {
     doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text(`Pump: ${system.pumpLat.toFixed(6)}, ${system.pumpLng.toFixed(6)}`, margin, y);
     doc.setTextColor(...LIGHT_GREEN);
-    doc.text("Pump Location: View on Google Maps", margin, y);
-    doc.link(margin, y - 3, 60, 5, { url: `https://www.google.com/maps?q=${system.pumpLat},${system.pumpLng}` });
-    y += 6;
+    doc.text("View on Maps", margin + 55, y);
+    doc.link(margin + 55, y - 3, 35, 5, { url: `https://www.google.com/maps?q=${system.pumpLat},${system.pumpLng}` });
+    y += 5;
+    if (system.pumpLocationImg) {
+      checkPage(45);
+      try { doc.addImage(system.pumpLocationImg, "JPEG", margin, y, 50, 38); } catch (_) { /* skip */ }
+      y += 42;
+    }
   }
 
   // ─── BACKFLOW DEVICES ───
@@ -337,13 +369,20 @@ export default function generatePDF({
     doc.text("Zone Locations:", margin, y + 4);
     y += 8;
     doc.setFontSize(8);
-    doc.setTextColor(...LIGHT_GREEN);
     zonesWithLocation.forEach((z) => {
-      checkPage(12);
+      checkPage(50);
       const prefix = z.area ? `Zone ${z.id} [${z.area}]` : `Zone ${z.id}`;
-      doc.text(`${prefix} — View on Maps`, margin + 2, y + 2);
-      doc.link(margin + 2, y - 1, 60, 5, { url: `https://www.google.com/maps?q=${z.lat},${z.lng}` });
+      doc.setTextColor(...GRAY);
+      doc.text(`${prefix}: ${z.lat.toFixed(6)}, ${z.lng.toFixed(6)}`, margin + 2, y + 2);
+      doc.setTextColor(...LIGHT_GREEN);
+      doc.text("View on Maps", margin + 80, y + 2);
+      doc.link(margin + 80, y - 1, 35, 5, { url: `https://www.google.com/maps?q=${z.lat},${z.lng}` });
       y += 6;
+      if (z.locationImg) {
+        checkPage(45);
+        try { doc.addImage(z.locationImg, "JPEG", margin + 2, y, 50, 38); } catch (_) { /* skip */ }
+        y += 42;
+      }
     });
   }
 
@@ -385,6 +424,32 @@ export default function generatePDF({
 
       y += imgH + 8;
     });
+  }
+
+  // ─── MATERIALS NEEDED ───
+
+  const matMap = {};
+  activeZones.forEach((z) => {
+    (z.materials || []).filter((m) => m.part).forEach((m) => {
+      matMap[m.part] = (matMap[m.part] || 0) + (Number(m.qty) || 1);
+    });
+  });
+  const matEntries = Object.entries(matMap);
+  if (matEntries.length > 0) {
+    sectionTitle("MATERIALS NEEDED");
+    const matRows = matEntries.map(([part, qty]) => [String(qty), part]);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Qty", "Part / Fitting"]],
+      body: matRows,
+      theme: "grid",
+      headStyles: { fillColor: GREEN, textColor: WHITE, fontStyle: "bold", fontSize: 9, halign: "center" },
+      bodyStyles: { fontSize: 9, cellPadding: 2.5 },
+      alternateRowStyles: { fillColor: LIGHT_BG },
+      columnStyles: { 0: { cellWidth: 16, halign: "center", fontStyle: "bold" } },
+    });
+    y = doc.lastAutoTable.finalY + 6;
   }
 
   // ─── OBSERVATIONS ───
