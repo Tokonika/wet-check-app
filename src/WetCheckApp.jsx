@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import generatePDF from "./utils/generatePDF";
+import { useAuth } from "./AuthProvider";
 
 // ─── CONSTANTS ───
 
@@ -279,6 +280,7 @@ function SectionHead({ title, collapsible, open, onToggle }) {
 // ─── MAIN APP ───
 
 export default function WetCheckApp() {
+  const { logout } = useAuth();
   const [propertyType, setPropertyType] = useState(null);
   const [step, setStep] = useState(0);
   const topRef = useRef(null);
@@ -558,9 +560,14 @@ export default function WetCheckApp() {
               <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.5 }}>{companyName}</div>
               <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>Wet Check Inspection App</div>
             </div>
-            <button onClick={() => { setCompanyDraft(company || { name: "", phone: "", website: "", logo: null }); setShowCompanySetup(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
-              ⚙️ Setup
-            </button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => { setCompanyDraft(company || { name: "", phone: "", website: "", logo: null }); setShowCompanySetup(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
+                ⚙️ Setup
+              </button>
+              <button onClick={logout} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
+                Logout
+              </button>
+            </div>
           </div>
         </div>
         <div style={{ padding: 20, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 16 }}>
@@ -1080,7 +1087,10 @@ export default function WetCheckApp() {
               <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{isCommercial ? "Commercial" : "Residential"} Wet Check</div>
             </div>
           </div>
-          <button onClick={() => { setPropertyType(null); setStep(0); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Change</button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => { setPropertyType(null); setStep(0); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Change</button>
+            <button onClick={logout} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Logout</button>
+          </div>
         </div>
       </div>
       <div style={S.stepBar}>
