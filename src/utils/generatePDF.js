@@ -1,11 +1,11 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const GREEN = [26, 86, 50];
-const LIGHT_GREEN = [45, 138, 78];
+const GREEN = [26, 58, 92];
+const LIGHT_GREEN = [45, 109, 168];
 const RED = [211, 47, 47];
 const GRAY = [100, 100, 100];
-const LIGHT_BG = [245, 250, 247];
+const LIGHT_BG = [232, 240, 248];
 const WHITE = [255, 255, 255];
 
 export default function generatePDF({

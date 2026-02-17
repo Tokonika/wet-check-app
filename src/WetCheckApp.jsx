@@ -102,13 +102,13 @@ const S = {
     fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     display: "flex", flexDirection: "column",
   },
-  header: { background: "linear-gradient(135deg, #1a5632, #2d8a4e)", color: "#fff", padding: "16px 20px 12px" },
+  header: { background: "linear-gradient(135deg, #1a3a5c, #2d6da8)", color: "#fff", padding: "16px 20px 12px" },
   stepBar: { display: "flex", justifyContent: "center", gap: 12, padding: "12px 20px 4px", background: "#fff", borderBottom: "1px solid #eee" },
   stepDot: { width: 32, height: 32, borderRadius: "50%", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
   statsBar: { display: "flex", justifyContent: "space-around", padding: "10px 20px", background: "#fff", borderBottom: "1px solid #eee", position: "sticky", top: 0, zIndex: 10 },
   stat: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 },
   content: { flex: 1, padding: "16px 16px 100px" },
-  stepTitle: { fontSize: 20, fontWeight: 800, color: "#1a5632", marginBottom: 16, marginTop: 0 },
+  stepTitle: { fontSize: 20, fontWeight: 800, color: "#1a3a5c", marginBottom: 16, marginTop: 0 },
   subTitle: { fontSize: 14, fontWeight: 700, color: "#333", marginBottom: 10, marginTop: 4 },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", marginBottom: 4 },
   label: { display: "block", fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 4 },
@@ -120,7 +120,7 @@ const S = {
   card: { background: "#fff", borderRadius: 12, padding: 14, marginBottom: 10, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #eee" },
   zoneCard: { background: "#fff", borderRadius: 12, padding: "10px 14px", marginBottom: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", cursor: "pointer" },
   zoneHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  zoneBadge: { background: "#1a5632", color: "#fff", padding: "2px 10px", borderRadius: 12, fontSize: 12, fontWeight: 700 },
+  zoneBadge: { background: "#1a3a5c", color: "#fff", padding: "2px 10px", borderRadius: 12, fontSize: 12, fontWeight: 700 },
   okBtn: { padding: "4px 14px", borderRadius: 16, border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer" },
   zoneGrid: { display: "grid", gridTemplateColumns: "1fr", gap: 0 },
   addBtn: { width: "100%", padding: 14, borderRadius: 12, border: "2px dashed #ccc", background: "transparent", fontSize: 14, fontWeight: 600, color: "#888", cursor: "pointer", marginTop: 8 },
@@ -128,7 +128,7 @@ const S = {
   navBar: { position: "fixed", bottom: 0, left: 0, right: 0, display: "flex", padding: "12px 16px", paddingBottom: 28, background: "#fff", borderTop: "1px solid #eee", maxWidth: 540, margin: "0 auto", boxSizing: "border-box" },
   navBtn: { padding: "14px 28px", borderRadius: 12, border: "none", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" },
   divider: { height: 1, background: "#eee", margin: "18px 0" },
-  reportPre: { background: "#1a2332", color: "#e8f5ec", padding: 16, borderRadius: 12, fontSize: 11, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "auto", maxHeight: 500, fontFamily: "'SF Mono', 'Courier New', monospace" },
+  reportPre: { background: "#1a2332", color: "#e8f0f8", padding: 16, borderRadius: 12, fontSize: 11, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word", overflow: "auto", maxHeight: 500, fontFamily: "'SF Mono', 'Courier New', monospace" },
   typeCard: { display: "flex", alignItems: "center", gap: 16, padding: "20px 24px", borderRadius: 16, border: "2px solid #eee", background: "#fff", cursor: "pointer", textAlign: "left", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", transition: "border-color 0.2s, box-shadow 0.2s" },
 };
 
@@ -160,9 +160,9 @@ function Toggle({ label, checked, onChange }) {
   return (
     <button onClick={onChange} style={{
       ...S.toggle,
-      background: checked ? "#1a5632" : "#f5f5f5",
+      background: checked ? "#1a3a5c" : "#f5f5f5",
       color: checked ? "#fff" : "#555",
-      borderColor: checked ? "#1a5632" : "#ddd",
+      borderColor: checked ? "#1a3a5c" : "#ddd",
     }}>
       {checked ? "✓ " : ""}{label}
     </button>
@@ -239,16 +239,16 @@ function LocationBtn({ lat, lng, onLocate, locating, locationImg, onPhotoUpload,
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <button onClick={onLocate} disabled={locating} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #1a5632", background: locating ? "#eee" : "#e8f5ec", color: "#1a5632", fontSize: 13, fontWeight: 600, cursor: locating ? "wait" : "pointer" }}>
+        <button onClick={onLocate} disabled={locating} style={{ padding: "6px 12px", borderRadius: 8, border: "1.5px solid #1a3a5c", background: locating ? "#eee" : "#e8f0f8", color: "#1a3a5c", fontSize: 13, fontWeight: 600, cursor: locating ? "wait" : "pointer" }}>
           {locating ? "Locating..." : "📍 Get Location"}
         </button>
         {lat && (
-          <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1a5632" }}>
+          <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1a3a5c" }}>
             View Map
           </a>
         )}
         {lat && onPhotoUpload && (
-          <button onClick={() => photoRef.current?.click()} style={{ padding: "4px 8px", borderRadius: 6, border: "1.5px solid #1a5632", background: "#e8f5ec", color: "#1a5632", fontSize: 12, cursor: "pointer" }}>
+          <button onClick={() => photoRef.current?.click()} style={{ padding: "4px 8px", borderRadius: 6, border: "1.5px solid #1a3a5c", background: "#e8f0f8", color: "#1a3a5c", fontSize: 12, cursor: "pointer" }}>
             📷
           </button>
         )}
@@ -542,7 +542,7 @@ export default function WetCheckApp() {
             )}
             <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogo} style={{ display: "none" }} />
           </div>
-          <button onClick={saveCompany} style={{ ...S.navBtn, background: "#1a5632", width: "100%", textAlign: "center", marginTop: 10 }}>Save Company Info</button>
+          <button onClick={saveCompany} style={{ ...S.navBtn, background: "#1a3a5c", width: "100%", textAlign: "center", marginTop: 10 }}>Save Company Info</button>
           <button onClick={() => setShowCompanySetup(false)} style={{ ...S.navBtn, background: "#666", width: "100%", textAlign: "center", marginTop: 8 }}>Cancel</button>
         </div>
       </div>
@@ -573,7 +573,7 @@ export default function WetCheckApp() {
             <button key={opt.key} onClick={() => setPropertyType(opt.key)} style={S.typeCard}>
               <span style={{ fontSize: 36 }}>{opt.icon}</span>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "#1a5632" }}>{opt.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#1a3a5c" }}>{opt.label}</div>
                 <div style={{ fontSize: 13, color: "#777", marginTop: 2 }}>{opt.desc}</div>
               </div>
             </button>
@@ -599,14 +599,14 @@ export default function WetCheckApp() {
           <label style={S.label}>Property Address</label>
           <div style={{ display: "flex", gap: 8 }}>
             <input value={client.address} onChange={(e) => updateClient("address", e.target.value)} placeholder="123 Main St" style={{ ...S.input, flex: 1 }} />
-            <button onClick={fetchClientLocation} disabled={locating === "client"} style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid #1a5632", background: locating === "client" ? "#eee" : "#e8f5ec", color: "#1a5632", fontSize: 18, cursor: locating === "client" ? "wait" : "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+            <button onClick={fetchClientLocation} disabled={locating === "client"} style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid #1a3a5c", background: locating === "client" ? "#eee" : "#e8f0f8", color: "#1a3a5c", fontSize: 18, cursor: locating === "client" ? "wait" : "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
               {locating === "client" ? "..." : "📍"}
             </button>
           </div>
           {client.lat && <div style={{ marginTop: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <a href={`https://www.google.com/maps?q=${client.lat},${client.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1a5632" }}>View on Google Maps</a>
-              <button onClick={() => { const ref = document.getElementById("clientLocPhoto"); ref?.click(); }} style={{ padding: "3px 8px", borderRadius: 6, border: "1.5px solid #1a5632", background: "#e8f5ec", color: "#1a5632", fontSize: 11, cursor: "pointer" }}>📷 Photo</button>
+              <a href={`https://www.google.com/maps?q=${client.lat},${client.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1a3a5c" }}>View on Google Maps</a>
+              <button onClick={() => { const ref = document.getElementById("clientLocPhoto"); ref?.click(); }} style={{ padding: "3px 8px", borderRadius: 6, border: "1.5px solid #1a3a5c", background: "#e8f0f8", color: "#1a3a5c", fontSize: 11, cursor: "pointer" }}>📷 Photo</button>
             </div>
             <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>Lat: {client.lat.toFixed(6)}, Lng: {client.lng.toFixed(6)}</div>
             {client.locationImg && (
@@ -732,23 +732,23 @@ export default function WetCheckApp() {
           <button onClick={toggleAllExpanded} style={{ ...S.toggle, fontSize: 11, padding: "5px 12px" }}>{allExpanded ? "Collapse All" : "Expand All"}</button>
           {isCommercial && <div style={{ display: "flex", gap: 4 }}>
             {[["none", "All"], ["area", "By Area"], ["controller", "By Ctrl"]].map(([val, label]) => (
-              <button key={val} onClick={() => setGroupBy(val)} style={{ ...S.toggle, fontSize: 11, padding: "5px 10px", background: groupBy === val ? "#1a5632" : "#f5f5f5", color: groupBy === val ? "#fff" : "#555", borderColor: groupBy === val ? "#1a5632" : "#ddd" }}>{label}</button>
+              <button key={val} onClick={() => setGroupBy(val)} style={{ ...S.toggle, fontSize: 11, padding: "5px 10px", background: groupBy === val ? "#1a3a5c" : "#f5f5f5", color: groupBy === val ? "#fff" : "#555", borderColor: groupBy === val ? "#1a3a5c" : "#ddd" }}>{label}</button>
             ))}
           </div>}
         </div>
         <div style={{ background: "#eee", borderRadius: 6, height: 6, marginBottom: 14, overflow: "hidden" }}>
-          <div style={{ width: `${progressPct}%`, height: "100%", background: "linear-gradient(90deg, #2d8a4e, #1a5632)", borderRadius: 6, transition: "width 0.3s" }} />
+          <div style={{ width: `${progressPct}%`, height: "100%", background: "linear-gradient(90deg, #2d6da8, #1a3a5c)", borderRadius: 6, transition: "width 0.3s" }} />
         </div>
         {groupedZones.map((group, gi) => (
           <div key={gi}>
-            {group.label && <div style={{ fontSize: 13, fontWeight: 700, color: "#1a5632", padding: "10px 0 6px", borderBottom: "1px solid #eee", marginBottom: 8 }}>{group.label} ({group.zones.length})</div>}
+            {group.label && <div style={{ fontSize: 13, fontWeight: 700, color: "#1a3a5c", padding: "10px 0 6px", borderBottom: "1px solid #eee", marginBottom: 8 }}>{group.label} ({group.zones.length})</div>}
             {group.zones.map((zone, zi) => {
               const idx = group.indices ? group.indices[zi] : zones.indexOf(zone);
               const hasIssue = zone.leak || zone.broken || zone.clogged || zone.misaligned;
-              const borderColor = zone.ok ? "#2d8a4e" : hasIssue ? "#d32f2f" : "#ddd";
+              const borderColor = zone.ok ? "#2d6da8" : hasIssue ? "#d32f2f" : "#ddd";
               const expanded = expandedZones.has(zone.id);
               const statusLabel = zone.ok ? "OK" : hasIssue ? "Issues" : "Pending";
-              const statusColor = zone.ok ? "#2d8a4e" : hasIssue ? "#d32f2f" : "#aaa";
+              const statusColor = zone.ok ? "#2d6da8" : hasIssue ? "#d32f2f" : "#aaa";
               return (
                 <div key={zone.id} style={{ ...S.zoneCard, borderLeft: `4px solid ${borderColor}` }}>
                   <div style={S.zoneHeader} onClick={() => toggleZoneExpand(zone.id)}>
@@ -756,13 +756,13 @@ export default function WetCheckApp() {
                       <span style={S.zoneBadge}>Z{zone.id}</span>
                       <span style={{ fontSize: 12, color: "#888" }}>{zone.type || ""}</span>
                       {zone.area ? <span style={{ fontSize: 11, color: "#aaa" }}>• {zone.area}</span> : null}
-                      {zone.lat && <span style={{ fontSize: 11, color: "#1a5632" }}>📍</span>}
-                      {zone.materials.length > 0 && <span style={{ fontSize: 11, color: "#1a5632" }}>🔧{zone.materials.length}</span>}
-                      {(zone.beforeImg || zone.afterImg) && <span style={{ fontSize: 11, color: "#1a5632" }}>📷</span>}
+                      {zone.lat && <span style={{ fontSize: 11, color: "#1a3a5c" }}>📍</span>}
+                      {zone.materials.length > 0 && <span style={{ fontSize: 11, color: "#1a3a5c" }}>🔧{zone.materials.length}</span>}
+                      {(zone.beforeImg || zone.afterImg) && <span style={{ fontSize: 11, color: "#1a3a5c" }}>📷</span>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, background: statusColor + "18", padding: "2px 10px", borderRadius: 12 }}>{statusLabel}</span>
-                      <button onClick={(e) => { e.stopPropagation(); updateZone(idx, "ok", !zone.ok); }} style={{ ...S.okBtn, background: zone.ok ? "#2d8a4e" : "#e8e8e8", color: zone.ok ? "#fff" : "#888" }}>{zone.ok ? "✓" : "OK"}</button>
+                      <button onClick={(e) => { e.stopPropagation(); updateZone(idx, "ok", !zone.ok); }} style={{ ...S.okBtn, background: zone.ok ? "#2d6da8" : "#e8e8e8", color: zone.ok ? "#fff" : "#888" }}>{zone.ok ? "✓" : "OK"}</button>
                       <span style={{ fontSize: 12, color: "#bbb" }}>{expanded ? "▲" : "▼"}</span>
                     </div>
                   </div>
@@ -853,7 +853,7 @@ export default function WetCheckApp() {
         <h3 style={S.subTitle}>Priority Level</h3>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
           {["Immediate / Safety", "High Priority", "Routine", "Upgrade"].map((p) => (
-            <button key={p} onClick={() => setPriority(p)} style={{ ...S.toggle, background: priority === p ? "#1a5632" : "#f5f5f5", color: priority === p ? "#fff" : "#555", borderColor: priority === p ? "#1a5632" : "#ddd" }}>{p}</button>
+            <button key={p} onClick={() => setPriority(p)} style={{ ...S.toggle, background: priority === p ? "#1a3a5c" : "#f5f5f5", color: priority === p ? "#fff" : "#555", borderColor: priority === p ? "#1a3a5c" : "#ddd" }}>{p}</button>
           ))}
         </div>
         <div style={S.grid2}>
@@ -866,7 +866,7 @@ export default function WetCheckApp() {
     );
 
     // STEP 4: SUMMARY
-    const rS = { section: { marginBottom: 16 }, heading: { fontSize: 14, fontWeight: 800, color: "#1a5632", borderBottom: "2px solid #1a5632", paddingBottom: 4, marginBottom: 10 }, row: { display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid #f0f0f0" }, lbl: { fontSize: 12, color: "#888", fontWeight: 600 }, val: { fontSize: 12, color: "#222", fontWeight: 500, textAlign: "right" } };
+    const rS = { section: { marginBottom: 16 }, heading: { fontSize: 14, fontWeight: 800, color: "#1a3a5c", borderBottom: "2px solid #1a3a5c", paddingBottom: 4, marginBottom: 10 }, row: { display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid #f0f0f0" }, lbl: { fontSize: 12, color: "#888", fontWeight: 600 }, val: { fontSize: 12, color: "#222", fontWeight: 500, textAlign: "right" } };
     const RRow = ({ label, value }) => value ? <div style={rS.row}><span style={rS.lbl}>{label}</span><span style={rS.val}>{value}</span></div> : null;
 
     const activeZonesData = zones.slice(0, activeZoneCount);
@@ -881,9 +881,9 @@ export default function WetCheckApp() {
         {/* Document-style preview */}
         <div style={{ background: "#fff", borderRadius: 12, padding: "24px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)", border: "1px solid #e0e0e0", marginBottom: 16 }}>
           {/* Header */}
-          <div style={{ textAlign: "center", borderBottom: "3px solid #1a5632", paddingBottom: 12, marginBottom: 16 }}>
+          <div style={{ textAlign: "center", borderBottom: "3px solid #1a3a5c", paddingBottom: 12, marginBottom: 16 }}>
             {company?.logo && <img src={company.logo} alt="Logo" style={{ maxWidth: 150, maxHeight: 60, marginBottom: 6 }} />}
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a5632", letterSpacing: 1 }}>{companyName}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1a3a5c", letterSpacing: 1 }}>{companyName}</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#555", marginTop: 4 }}>{isCommercial ? "Commercial" : "Residential"} Wet Check Inspection Report</div>
             {isCommercial && client.propertySubType && <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{client.propertySubType}</div>}
             <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>{client.date}</div>
@@ -894,7 +894,7 @@ export default function WetCheckApp() {
             <div style={rS.heading}>Client Information</div>
             <RRow label="Client" value={client.name} />
             <RRow label="Address" value={[client.address, client.city].filter(Boolean).join(", ")} />
-            {client.lat && <div style={rS.row}><span style={rS.lbl}>Location ({client.lat.toFixed(6)}, {client.lng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${client.lat},${client.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Google Maps</a></div>}
+            {client.lat && <div style={rS.row}><span style={rS.lbl}>Location ({client.lat.toFixed(6)}, {client.lng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${client.lat},${client.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a3a5c" }}>View on Google Maps</a></div>}
             <RRow label="Phone" value={client.phone} />
             <RRow label="Email" value={client.email} />
             <RRow label={isCommercial ? "Management Co." : "Property Manager"} value={client.manager} />
@@ -912,7 +912,7 @@ export default function WetCheckApp() {
             {controllers.map((c) => (
               <div key={c.id}>
                 <RRow label={`Controller ${c.id}`} value={[c.make, c.type, c.location].filter(Boolean).join(" — ") || "—"} />
-                {c.lat && <div style={rS.row}><span style={rS.lbl}>  Location ({c.lat.toFixed(6)}, {c.lng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Maps</a></div>}
+                {c.lat && <div style={rS.row}><span style={rS.lbl}>  Location ({c.lat.toFixed(6)}, {c.lng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a3a5c" }}>View on Maps</a></div>}
               </div>
             ))}
             <RRow label="Water Source" value={system.waterSource} />
@@ -922,7 +922,7 @@ export default function WetCheckApp() {
             {backflows.map((b) => <RRow key={b.id} label={`Backflow ${b.id}`} value={[b.type, b.condition].filter(Boolean).join(" — ") || "—"} />)}
             <RRow label="Rain Sensor" value={system.rainSensor} />
             <RRow label="Pump Station" value={system.pumpStation} />
-            {system.pumpLat && <div style={rS.row}><span style={rS.lbl}>Pump Location ({system.pumpLat.toFixed(6)}, {system.pumpLng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${system.pumpLat},${system.pumpLng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a5632" }}>View on Maps</a></div>}
+            {system.pumpLat && <div style={rS.row}><span style={rS.lbl}>Pump Location ({system.pumpLat.toFixed(6)}, {system.pumpLng.toFixed(6)})</span><a href={`https://www.google.com/maps?q=${system.pumpLat},${system.pumpLng}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#1a3a5c" }}>View on Maps</a></div>}
             {isCommercial && <>
               <RRow label="Mainline" value={[system.mainlineSize, system.mainlineMaterial].filter(Boolean).join(" ")} />
               <RRow label="Master Valve" value={system.masterValve} />
@@ -935,8 +935,8 @@ export default function WetCheckApp() {
           <div style={rS.section}>
             <div style={rS.heading}>Zone Inspection Summary</div>
             <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
-              <div style={{ background: "#e8f5ec", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#1a5632" }}>{zonesOk.length}</div>
+              <div style={{ background: "#e8f0f8", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#1a3a5c" }}>{zonesOk.length}</div>
                 <div style={{ fontSize: 10, color: "#666" }}>OK</div>
               </div>
               <div style={{ background: "#ffebee", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
@@ -953,7 +953,7 @@ export default function WetCheckApp() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                 <thead>
-                  <tr style={{ background: "#1a5632", color: "#fff" }}>
+                  <tr style={{ background: "#1a3a5c", color: "#fff" }}>
                     <th style={{ padding: "6px 8px", textAlign: "left" }}>Zone</th>
                     <th style={{ padding: "6px 8px", textAlign: "left" }}>Type</th>
                     <th style={{ padding: "6px 8px", textAlign: "center" }}>Heads</th>
@@ -964,7 +964,7 @@ export default function WetCheckApp() {
                   {activeZonesData.map((z) => {
                     const issues = []; if (z.leak) issues.push("Leak"); if (z.broken) issues.push("Broken"); if (z.clogged) issues.push("Clogged"); if (z.misaligned) issues.push("Misaligned");
                     const st = z.ok ? "OK" : issues.length ? issues.join(", ") : "—";
-                    const stColor = z.ok ? "#1a5632" : issues.length ? "#d32f2f" : "#999";
+                    const stColor = z.ok ? "#1a3a5c" : issues.length ? "#d32f2f" : "#999";
                     return (
                       <tr key={z.id} style={{ borderBottom: "1px solid #eee", background: z.id % 2 === 0 ? "#fafafa" : "#fff" }}>
                         <td style={{ padding: "5px 8px", fontWeight: 600 }}>Z{z.id}{z.area ? ` — ${z.area}` : ""}</td>
@@ -990,7 +990,7 @@ export default function WetCheckApp() {
                 <div style={rS.heading}>Materials Needed</div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
-                    <tr style={{ background: "#1a5632", color: "#fff" }}>
+                    <tr style={{ background: "#1a3a5c", color: "#fff" }}>
                       <th style={{ padding: "5px 8px", textAlign: "left" }}>Part / Fitting</th>
                       <th style={{ padding: "5px 8px", textAlign: "center", width: 50 }}>Qty</th>
                     </tr>
@@ -1036,7 +1036,7 @@ export default function WetCheckApp() {
               {[["Priority", priority], ["Est. Cost", estCost], ["Est. Time", estTime]].map(([l, v]) => (
                 <div key={l} style={{ flex: 1, background: "#f5faf7", border: "1px solid #dde8df", borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
                   <div style={{ fontSize: 10, color: "#888", fontWeight: 600 }}>{l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1a5632", marginTop: 4 }}>{v || "—"}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1a3a5c", marginTop: 4 }}>{v || "—"}</div>
                 </div>
               ))}
             </div>
@@ -1048,7 +1048,7 @@ export default function WetCheckApp() {
           </div>
 
           {/* Footer */}
-          <div style={{ textAlign: "center", marginTop: 16, paddingTop: 10, borderTop: "2px solid #1a5632" }}>
+          <div style={{ textAlign: "center", marginTop: 16, paddingTop: 10, borderTop: "2px solid #1a3a5c" }}>
             <div style={{ fontSize: 10, color: "#888" }}>{companyWebsite}{companyPhone ? ` | ${companyPhone}` : ""} | Hablamos Espanol</div>
           </div>
         </div>
@@ -1057,7 +1057,7 @@ export default function WetCheckApp() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <button onClick={downloadPDF} style={{ ...S.navBtn, background: "#c62828", width: "100%", textAlign: "center" }}>Download PDF Report</button>
           <button onClick={shareWhatsApp} style={{ ...S.navBtn, background: "#25D366", width: "100%", textAlign: "center" }}>Share via WhatsApp</button>
-          <button onClick={copyReport} style={{ ...S.navBtn, background: "#1a5632", width: "100%", textAlign: "center" }}>Copy to Clipboard</button>
+          <button onClick={copyReport} style={{ ...S.navBtn, background: "#1a3a5c", width: "100%", textAlign: "center" }}>Copy to Clipboard</button>
           <button onClick={() => { const blob = new Blob([generateReport()], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `WetCheck_${client.name.replace(/\s/g, "_") || "report"}_${client.date}.txt`; a.click(); }} style={{ ...S.navBtn, background: "#1565C0", width: "100%", textAlign: "center" }}>Download as Text</button>
         </div>
       </div>
@@ -1085,7 +1085,7 @@ export default function WetCheckApp() {
       </div>
       <div style={S.stepBar}>
         {steps.map((s, i) => (
-          <button key={s} onClick={() => { setStep(i); scrollTop(); }} style={{ ...S.stepDot, background: i === step ? "#1a5632" : i < step ? "#2d8a4e" : "#ddd", color: i <= step ? "#fff" : "#999" }}>
+          <button key={s} onClick={() => { setStep(i); scrollTop(); }} style={{ ...S.stepDot, background: i === step ? "#1a3a5c" : i < step ? "#2d6da8" : "#ddd", color: i <= step ? "#fff" : "#999" }}>
             {i < step ? "✓" : i + 1}
           </button>
         ))}
@@ -1093,7 +1093,7 @@ export default function WetCheckApp() {
       <div style={{ textAlign: "center", fontSize: 12, color: "#888", marginBottom: 10 }}>{steps[step]}</div>
       {step === 2 && (
         <div style={S.statsBar}>
-          <div style={S.stat}><span style={{ fontSize: 20, fontWeight: 800, color: "#1a5632" }}>{okCount}</span><span style={{ fontSize: 10, color: "#888" }}>OK</span></div>
+          <div style={S.stat}><span style={{ fontSize: 20, fontWeight: 800, color: "#1a3a5c" }}>{okCount}</span><span style={{ fontSize: 10, color: "#888" }}>OK</span></div>
           <div style={S.stat}><span style={{ fontSize: 20, fontWeight: 800, color: "#d32f2f" }}>{issueCount}</span><span style={{ fontSize: 10, color: "#888" }}>Issues</span></div>
           <div style={S.stat}><span style={{ fontSize: 20, fontWeight: 800, color: "#666" }}>{pendingCount}</span><span style={{ fontSize: 10, color: "#888" }}>Pending</span></div>
           <div style={S.stat}><span style={{ fontSize: 20, fontWeight: 800, color: "#1565C0" }}>{progressPct}%</span><span style={{ fontSize: 10, color: "#888" }}>Done</span></div>
@@ -1104,7 +1104,7 @@ export default function WetCheckApp() {
       </div>
       <div style={S.navBar}>
         {step > 0 && <button onClick={() => goStep(-1)} style={{ ...S.navBtn, background: "#666" }}>← Back</button>}
-        {step < 4 && <button onClick={() => goStep(1)} style={{ ...S.navBtn, background: "#1a5632", marginLeft: "auto" }}>{step === 3 ? "Generate Report →" : "Next →"}</button>}
+        {step < 4 && <button onClick={() => goStep(1)} style={{ ...S.navBtn, background: "#1a3a5c", marginLeft: "auto" }}>{step === 3 ? "Generate Report →" : "Next →"}</button>}
       </div>
     </div>
   );
