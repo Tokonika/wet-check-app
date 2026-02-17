@@ -279,20 +279,21 @@ function SectionHead({ title, collapsible, open, onToggle }) {
 
 // ─── MAIN APP ───
 
-export default function WetCheckApp() {
-  const { logout } = useAuth();
+export default function WetCheckApp({ onBackToDashboard }) {
+  const { logout, profile, updateProfile } = useAuth();
   const [propertyType, setPropertyType] = useState(null);
   const [step, setStep] = useState(0);
   const topRef = useRef(null);
   const logoInputRef = useRef(null);
 
-  // Company branding (persisted in localStorage)
-  const [company, setCompany] = useState(() => {
-    try { const saved = localStorage.getItem("wetcheck_company"); return saved ? JSON.parse(saved) : null; } catch { return null; }
-  });
+  // Company branding (from Firestore profile)
+  const company = profile?.company || null;
   const [showCompanySetup, setShowCompanySetup] = useState(false);
   const [companyDraft, setCompanyDraft] = useState({ name: "", phone: "", website: "", logo: null });
-  const saveCompany = () => { localStorage.setItem("wetcheck_company", JSON.stringify(companyDraft)); setCompany(companyDraft); setShowCompanySetup(false); };
+  const saveCompany = async () => {
+    await updateProfile({ company: companyDraft });
+    setShowCompanySetup(false);
+  };
 
   const [client, setClient] = useState({
     name: "", address: "", city: "", phone: "", email: "", manager: "",
@@ -561,6 +562,7 @@ export default function WetCheckApp() {
               <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>Wet Check Inspection App</div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
+              {onBackToDashboard && <button onClick={onBackToDashboard} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Dashboard</button>}
               <button onClick={() => { setCompanyDraft(company || { name: "", phone: "", website: "", logo: null }); setShowCompanySetup(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
                 ⚙️ Setup
               </button>
@@ -1088,6 +1090,7 @@ export default function WetCheckApp() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
+            {onBackToDashboard && <button onClick={onBackToDashboard} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Dashboard</button>}
             <button onClick={() => { setPropertyType(null); setStep(0); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Change</button>
             <button onClick={logout} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Logout</button>
           </div>
