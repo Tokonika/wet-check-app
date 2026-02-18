@@ -3,12 +3,12 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore/lite";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyCMKgckRUPV9t5KVavRbWHwyl9a0-j6-WY",
+  authDomain: "wet-check-app.firebaseapp.com",
+  projectId: "wet-check-app",
+  storageBucket: "wet-check-app.firebasestorage.app",
+  messagingSenderId: "612475135163",
+  appId: "1:612475135163:web:59e74d1967b1a096d9759e",
 };
 
 const app = initializeApp(firebaseConfig);

@@ -1,6 +1,8 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import generatePDF from "./utils/generatePDF";
 import { useAuth } from "./AuthProvider";
+import { db } from "./firebase";
+import { collection, doc, setDoc, getDocs, query, where, orderBy, deleteDoc } from "firebase/firestore/lite";
 
 // ─── CONSTANTS ───
 
@@ -94,6 +96,34 @@ const COMMERCIAL_OBS = [
   ["codeViolations", "Code Violations"], ["timerIssues", "Timer Programming"],
   ["waterWaste", "Water Waste"], ["rootDamage", "Root Damage"],
 ];
+
+// ─── FIRESTORE HELPERS ───
+
+function stripImagesFromState(data) {
+  // Deep clone and remove base64 image fields to stay under Firestore doc size limits
+  const clone = JSON.parse(JSON.stringify(data));
+  // Strip client location image
+  if (clone.client) clone.client.locationImg = null;
+  // Strip system pump location image
+  if (clone.system) clone.system.pumpLocationImg = null;
+  // Strip zone images
+  if (clone.zones) {
+    clone.zones = clone.zones.map((z) => ({
+      ...z,
+      beforeImg: null,
+      afterImg: null,
+      locationImg: null,
+    }));
+  }
+  // Strip controller location images
+  if (clone.controllers) {
+    clone.controllers = clone.controllers.map((c) => ({
+      ...c,
+      locationImg: null,
+    }));
+  }
+  return clone;
+}
 
 // ─── STYLES (moved outside component) ───
 
@@ -280,7 +310,7 @@ function SectionHead({ title, collapsible, open, onToggle }) {
 // ─── MAIN APP ───
 
 export default function WetCheckApp({ onBackToDashboard }) {
-  const { logout, profile, updateProfile } = useAuth();
+  const { user, logout, profile, updateProfile } = useAuth();
   const [propertyType, setPropertyType] = useState(null);
   const [step, setStep] = useState(0);
   const topRef = useRef(null);
@@ -335,6 +365,192 @@ export default function WetCheckApp({ onBackToDashboard }) {
   const [sensorOpen, setSensorOpen] = useState(true);
   const [commOpen, setCommOpen] = useState(true);
   const [expandedCtrls, setExpandedCtrls] = useState(new Set([1]));
+
+  // ─── SAVED INSPECTIONS STATE ───
+  const [showInspectionList, setShowInspectionList] = useState(true); // Start on list screen
+  const [savedInspections, setSavedInspections] = useState([]);
+  const [loadingInspections, setLoadingInspections] = useState(false);
+  const [savingInspection, setSavingInspection] = useState(false);
+  const [currentInspectionId, setCurrentInspectionId] = useState(null);
+  const [saveMessage, setSaveMessage] = useState(null);
+  const autoSavedRef = useRef(false); // Track if auto-save already fired for current summary view
+
+  // ─── LOAD SAVED INSPECTIONS LIST ───
+  const loadInspectionsList = useCallback(async () => {
+    if (!user?.uid) return;
+    setLoadingInspections(true);
+    try {
+      const q = query(
+        collection(db, "inspections"),
+        where("userId", "==", user.uid),
+        orderBy("savedAt", "desc")
+      );
+      const snap = await getDocs(q);
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setSavedInspections(list);
+    } catch (err) {
+      console.error("Error loading inspections:", err);
+      // Fallback: try without orderBy in case index is missing
+      try {
+        const q2 = query(
+          collection(db, "inspections"),
+          where("userId", "==", user.uid)
+        );
+        const snap2 = await getDocs(q2);
+        const list2 = snap2.docs.map((d) => ({ id: d.id, ...d.data() }));
+        list2.sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
+        setSavedInspections(list2);
+      } catch (err2) {
+        console.error("Fallback inspection load error:", err2);
+      }
+    } finally {
+      setLoadingInspections(false);
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (showInspectionList) loadInspectionsList();
+  }, [showInspectionList, loadInspectionsList]);
+
+  // ─── SAVE CURRENT INSPECTION TO FIRESTORE ───
+  const saveInspection = useCallback(async (silent = false) => {
+    if (!user?.uid) return;
+    setSavingInspection(true);
+    setSaveMessage(null);
+    try {
+      const inspectionData = {
+        propertyType,
+        client,
+        system,
+        controllers,
+        backflows,
+        zones: zones.slice(0, activeZoneCount),
+        activeZoneCount,
+        observations,
+        recommendations,
+        priority,
+        estCost,
+        estTime,
+        techName,
+      };
+      const strippedData = stripImagesFromState(inspectionData);
+      const docId = currentInspectionId || doc(collection(db, "inspections")).id;
+      await setDoc(doc(db, "inspections", docId), {
+        userId: user.uid,
+        customerName: client.name || "Unnamed",
+        address: [client.address, client.city].filter(Boolean).join(", ") || "No address",
+        propertyType: propertyType || "residential",
+        savedAt: new Date().toISOString(),
+        step,
+        data: strippedData,
+      });
+      setCurrentInspectionId(docId);
+      if (!silent) {
+        setSaveMessage("Inspection saved successfully");
+        setTimeout(() => setSaveMessage(null), 2500);
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      if (!silent) {
+        setSaveMessage("Error saving: " + err.message);
+        setTimeout(() => setSaveMessage(null), 4000);
+      }
+    } finally {
+      setSavingInspection(false);
+    }
+  }, [user?.uid, propertyType, client, system, controllers, backflows, zones, activeZoneCount, observations, recommendations, priority, estCost, estTime, techName, step, currentInspectionId]);
+
+  // ─── AUTO-SAVE ON SUMMARY STEP ───
+  useEffect(() => {
+    if (step === 4 && !autoSavedRef.current && user?.uid && propertyType) {
+      autoSavedRef.current = true;
+      saveInspection(true);
+    }
+    if (step !== 4) {
+      autoSavedRef.current = false;
+    }
+  }, [step, user?.uid, propertyType, saveInspection]);
+
+  // ─── LOAD A SAVED INSPECTION INTO STATE ───
+  const loadInspection = (inspection) => {
+    const d = inspection.data;
+    if (!d) return;
+    setPropertyType(d.propertyType || inspection.propertyType || "residential");
+    setClient((prev) => ({ ...prev, ...d.client }));
+    setSystem((prev) => ({ ...prev, ...d.system }));
+    if (d.controllers?.length) setControllers(d.controllers.map((c, i) => ({ ...makeController(i + 1), ...c, id: i + 1 })));
+    if (d.backflows?.length) setBackflows(d.backflows.map((b, i) => ({ ...makeBackflow(i + 1), ...b, id: i + 1 })));
+    if (d.zones?.length) {
+      const loadedZones = d.zones.map((z, i) => ({ ...makeZone(i + 1), ...z, id: i + 1 }));
+      // Ensure we have at least as many zones as activeZoneCount
+      const needed = Math.max(d.activeZoneCount || loadedZones.length, loadedZones.length);
+      const fullZones = loadedZones.length >= needed
+        ? loadedZones
+        : [...loadedZones, ...Array.from({ length: needed - loadedZones.length }, (_, i) => makeZone(loadedZones.length + i + 1))];
+      setZones(fullZones);
+      setActiveZoneCount(d.activeZoneCount || fullZones.length);
+    }
+    if (d.observations) setObservations((prev) => ({ ...prev, ...d.observations }));
+    if (d.recommendations !== undefined) setRecommendations(d.recommendations);
+    if (d.priority !== undefined) setPriority(d.priority);
+    if (d.estCost !== undefined) setEstCost(d.estCost);
+    if (d.estTime !== undefined) setEstTime(d.estTime);
+    if (d.techName !== undefined) setTechName(d.techName);
+    setCurrentInspectionId(inspection.id);
+    setStep(inspection.step || 0);
+    setShowInspectionList(false);
+  };
+
+  // ─── DELETE A SAVED INSPECTION ───
+  const deleteInspection = async (inspectionId) => {
+    if (!window.confirm("Delete this saved inspection? This cannot be undone.")) return;
+    try {
+      await deleteDoc(doc(db, "inspections", inspectionId));
+      setSavedInspections((prev) => prev.filter((i) => i.id !== inspectionId));
+      if (currentInspectionId === inspectionId) setCurrentInspectionId(null);
+    } catch (err) {
+      alert("Error deleting: " + err.message);
+    }
+  };
+
+  // ─── START NEW INSPECTION ───
+  const startNewInspection = () => {
+    setPropertyType(null);
+    setStep(0);
+    setClient({
+      name: "", address: "", city: "", phone: "", email: "", manager: "",
+      date: new Date().toISOString().slice(0, 10), workOrder: "",
+      propertySubType: "", buildingName: "", numBuildings: "", irrigatedAcreage: "",
+      lat: null, lng: null, locationImg: null,
+    });
+    setSystem({
+      totalZones: "", activeZones: "",
+      waterSource: "", meterSize: "", staticPSI: "", workingPSI: "", flowRate: "",
+      rainSensor: "", pumpStation: "",
+      mainlineSize: "", mainlineMaterial: "", masterValve: "", flowSensor: "", poc: "",
+      pumpLat: null, pumpLng: null, pumpLocationImg: null,
+    });
+    setControllers([makeController(1)]);
+    setBackflows([makeBackflow(1)]);
+    setZones(Array.from({ length: 6 }, (_, i) => makeZone(i + 1)));
+    setActiveZoneCount(6);
+    setObservations({
+      mainLineLeak: false, lateralLeak: false, valveBoxFlooded: false,
+      overspray: false, drySpots: false, coverageIssues: false,
+      erosion: false, drainageIssues: false, codeViolations: false,
+      timerIssues: false, waterWaste: false, rootDamage: false,
+    });
+    setRecommendations("");
+    setPriority("");
+    setEstCost("");
+    setEstTime("");
+    setTechName("");
+    setCurrentInspectionId(null);
+    setExpandedZones(new Set());
+    setAllExpanded(false);
+    setGroupBy("none");
+    setShowInspectionList(false);
+  };
 
   const isCommercial = propertyType === "commercial";
   const scrollTop = () => topRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -552,7 +768,8 @@ export default function WetCheckApp({ onBackToDashboard }) {
     );
   }
 
-  if (!propertyType) {
+  // ─── INSPECTIONS LIST SCREEN ───
+  if (showInspectionList) {
     return (
       <div style={S.container} ref={topRef}>
         <div style={S.header}>
@@ -564,7 +781,105 @@ export default function WetCheckApp({ onBackToDashboard }) {
             <div style={{ display: "flex", gap: 6 }}>
               {onBackToDashboard && <button onClick={onBackToDashboard} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Dashboard</button>}
               <button onClick={() => { setCompanyDraft(company || { name: "", phone: "", website: "", logo: null }); setShowCompanySetup(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
-                ⚙️ Setup
+                Setup
+              </button>
+              <button onClick={logout} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: 20, flex: 1 }}>
+          {company?.logo && <div style={{ textAlign: "center", marginBottom: 12 }}><img src={company.logo} alt="Logo" style={{ maxWidth: 180, maxHeight: 70 }} /></div>}
+
+          {/* New Inspection Button */}
+          <button onClick={startNewInspection} style={{
+            width: "100%", padding: "18px 20px", borderRadius: 14, border: "none",
+            background: "linear-gradient(135deg, #1a3a5c, #2d6da8)", color: "#fff",
+            fontSize: 16, fontWeight: 800, cursor: "pointer", marginBottom: 24,
+            boxShadow: "0 4px 16px rgba(26,58,92,0.3)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+          }}>
+            + New Inspection
+          </button>
+
+          {/* Saved Inspections */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#333", margin: 0 }}>Saved Inspections</h3>
+            <button onClick={loadInspectionsList} disabled={loadingInspections} style={{
+              background: "none", border: "1.5px solid #1a3a5c", color: "#1a3a5c",
+              fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 8, cursor: "pointer",
+            }}>
+              {loadingInspections ? "Loading..." : "Refresh"}
+            </button>
+          </div>
+
+          {loadingInspections && savedInspections.length === 0 && (
+            <div style={{ textAlign: "center", padding: 40, color: "#888" }}>
+              <div style={{ fontSize: 14 }}>Loading inspections...</div>
+            </div>
+          )}
+
+          {!loadingInspections && savedInspections.length === 0 && (
+            <div style={{ textAlign: "center", padding: 40, color: "#888" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>--</div>
+              <div style={{ fontSize: 14 }}>No saved inspections yet</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Start a new inspection to get started</div>
+            </div>
+          )}
+
+          {savedInspections.map((insp) => {
+            const date = insp.savedAt ? new Date(insp.savedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "Unknown date";
+            const typeLabel = insp.propertyType === "commercial" ? "Commercial" : "Residential";
+            const stepNames = ["Client", "System", "Zones", "Review", "Summary"];
+            const lastStep = stepNames[insp.step] || "Client";
+            return (
+              <div key={insp.id} style={{
+                ...S.card, padding: "14px 16px", cursor: "pointer",
+                borderLeft: `4px solid ${insp.propertyType === "commercial" ? "#2d6da8" : "#1a3a5c"}`,
+                transition: "box-shadow 0.15s",
+              }} onClick={() => loadInspection(insp)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#1a3a5c", marginBottom: 3 }}>
+                      {insp.customerName || "Unnamed Customer"}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#666", marginBottom: 2 }}>{insp.address || "No address"}</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: insp.propertyType === "commercial" ? "#2d6da8" : "#1a3a5c", padding: "2px 8px", borderRadius: 10 }}>{typeLabel}</span>
+                      <span style={{ fontSize: 11, color: "#888" }}>{date}</span>
+                      <span style={{ fontSize: 11, color: "#aaa", fontStyle: "italic" }}>Last: {lastStep}</span>
+                    </div>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); deleteInspection(insp.id); }} style={{
+                    background: "none", border: "none", color: "#d32f2f", fontSize: 18,
+                    cursor: "pointer", padding: "4px 8px", fontWeight: 700, flexShrink: 0,
+                  }} title="Delete inspection">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (!propertyType) {
+    return (
+      <div style={S.container} ref={topRef}>
+        <div style={S.header}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.5 }}>{companyName}</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 3 }}>Wet Check Inspection App</div>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setShowInspectionList(true)} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Inspections</button>
+              {onBackToDashboard && <button onClick={onBackToDashboard} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Dashboard</button>}
+              <button onClick={() => { setCompanyDraft(company || { name: "", phone: "", website: "", logo: null }); setShowCompanySetup(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
+                Setup
               </button>
               <button onClick={logout} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "6px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>
                 Logout
@@ -579,7 +894,7 @@ export default function WetCheckApp({ onBackToDashboard }) {
             { key: "residential", icon: "🏠", label: "Residential", desc: "Single-family homes, townhomes" },
             { key: "commercial", icon: "🏢", label: "Commercial", desc: "HOA, office, retail, municipal, schools & more" },
           ].map((opt) => (
-            <button key={opt.key} onClick={() => setPropertyType(opt.key)} style={S.typeCard}>
+            <button key={opt.key} onClick={() => { setPropertyType(opt.key); setShowInspectionList(false); }} style={S.typeCard}>
               <span style={{ fontSize: 36 }}>{opt.icon}</span>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: "#1a3a5c" }}>{opt.label}</div>
@@ -1089,12 +1404,24 @@ export default function WetCheckApp({ onBackToDashboard }) {
               <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{isCommercial ? "Commercial" : "Residential"} Wet Check</div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button onClick={() => saveInspection(false)} disabled={savingInspection} style={{ background: savingInspection ? "rgba(255,255,255,0.1)" : "rgba(76,175,80,0.85)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: savingInspection ? "wait" : "pointer", fontWeight: 600 }}>{savingInspection ? "Saving..." : "Save"}</button>
+            <button onClick={() => setShowInspectionList(true)} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Inspections</button>
             {onBackToDashboard && <button onClick={onBackToDashboard} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Dashboard</button>}
             <button onClick={() => { setPropertyType(null); setStep(0); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Change</button>
             <button onClick={logout} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", fontSize: 11, padding: "4px 10px", borderRadius: 12, cursor: "pointer", fontWeight: 600 }}>Logout</button>
           </div>
         </div>
+        {/* Save message toast */}
+        {saveMessage && (
+          <div style={{
+            marginTop: 6, padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, textAlign: "center",
+            background: saveMessage.startsWith("Error") ? "rgba(211,47,47,0.2)" : "rgba(76,175,80,0.2)",
+            color: saveMessage.startsWith("Error") ? "#ffcdd2" : "#c8e6c9",
+          }}>
+            {saveMessage}
+          </div>
+        )}
       </div>
       <div style={S.stepBar}>
         {steps.map((s, i) => (
