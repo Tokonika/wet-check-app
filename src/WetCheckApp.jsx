@@ -711,8 +711,8 @@ export default function WetCheckApp({ onBackToDashboard }) {
 
   // ─── PROPERTY TYPE SELECTOR ───
 
-  const companyName = company?.name || "IRRIGATION SOLUTION GROUP";
-  const companyWebsite = company?.website || "www.irrigationssolutions.com";
+  const companyName = company?.name || "Wet Check App";
+  const companyWebsite = company?.website || "";
   const companyPhone = company?.phone || "";
 
   // ─── COMPANY SETUP SCREEN ───
@@ -791,6 +791,22 @@ export default function WetCheckApp({ onBackToDashboard }) {
         </div>
         <div style={{ padding: 20, flex: 1 }}>
           {company?.logo && <div style={{ textAlign: "center", marginBottom: 12 }}><img src={company.logo} alt="Logo" style={{ maxWidth: 180, maxHeight: 70 }} /></div>}
+
+          {/* Company Info Setup Prompt */}
+          {!company?.name && (
+            <div onClick={() => { setCompanyDraft({ name: "", phone: "", website: "", logo: null }); setShowCompanySetup(true); }} style={{
+              background: "#fff8e1", borderRadius: 12, padding: "14px 16px", marginBottom: 20,
+              cursor: "pointer", border: "2px dashed #ffa000",
+              display: "flex", alignItems: "center", gap: 12,
+            }}>
+              <div style={{ fontSize: 28 }}>🏢</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#e65100" }}>Set Up Company Information</div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Add your company name, logo & contact info to appear on reports</div>
+              </div>
+              <div style={{ fontSize: 20, color: "#ffa000" }}>›</div>
+            </div>
+          )}
 
           {/* New Inspection Button */}
           <button onClick={startNewInspection} style={{
