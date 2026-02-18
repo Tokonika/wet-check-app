@@ -1,3 +1,4 @@
+// Admin Dashboard v2 - with status controls
 import { useEffect, useState } from "react";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore/lite";
 import { db } from "./firebase";
