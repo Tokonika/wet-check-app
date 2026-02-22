@@ -75,13 +75,14 @@ const PARTS_CATEGORIES = {
   ],
 };
 
-const makeZone = (id) => ({
-  id, type: "", headType: "", heads: "", psi: "", ok: false,
+const makeZone = (id, controllerId = 1, zoneNumber = id) => ({
+  id, zoneNumber, controllerId,
+  type: "", headType: "", heads: "", psi: "", ok: false,
   leak: false, broken: false, clogged: false, misaligned: false,
-  notes: "", area: "", controllerId: 1,
+  notes: "", area: "",
   beforeImgs: [], afterImgs: [],
   lat: null, lng: null, locationImg: null,
-  materials: [], // [{ part: "4\" Pop-up Spray Head", qty: 3 }, ...]
+  materials: [],
 });
 const makeController = (id) => ({ id, make: "", type: "", location: "", zoneFrom: "", zoneTo: "", lat: null, lng: null, locationImg: null });
 const makeBackflow = (id) => ({ id, type: "", condition: "" });
@@ -390,8 +391,8 @@ export default function WetCheckApp({ onBackToDashboard }) {
 
   const [controllers, setControllers] = useState([makeController(1)]);
   const [backflows, setBackflows] = useState([makeBackflow(1)]);
-  const [zones, setZones] = useState(Array.from({ length: 6 }, (_, i) => makeZone(i + 1)));
-  const [activeZoneCount, setActiveZoneCount] = useState(6);
+  const [zones, setZones] = useState([]);
+  const [activeZoneCount, setActiveZoneCount] = useState(0);
   const [expandedZones, setExpandedZones] = useState(new Set());
   const [allExpanded, setAllExpanded] = useState(false);
   const [groupBy, setGroupBy] = useState("none");
@@ -579,8 +580,8 @@ export default function WetCheckApp({ onBackToDashboard }) {
     });
     setControllers([makeController(1)]);
     setBackflows([makeBackflow(1)]);
-    setZones(Array.from({ length: 6 }, (_, i) => makeZone(i + 1)));
-    setActiveZoneCount(6);
+    setZones([]);
+    setActiveZoneCount(0);
     setObservations({
       mainLineLeak: false, lateralLeak: false, valveBoxFlooded: false,
       overspray: false, drySpots: false, coverageIssues: false,
@@ -611,36 +612,33 @@ export default function WetCheckApp({ onBackToDashboard }) {
   const updateController = (idx, k, v) => setControllers((prev) => prev.map((c, i) => (i === idx ? { ...c, [k]: v } : c)));
   const updateBackflow = (idx, k, v) => setBackflows((prev) => prev.map((b, i) => (i === idx ? { ...b, [k]: v } : b)));
 
-  // When Zone From or Zone To changes on any controller, auto-create zones and assign controllerId
+  // When Zone From or Zone To changes on any controller, rebuild zones independently per controller
   const handleControllerZoneChange = (idx, key, value) => {
-    setControllers((prev) => {
-      const updated = prev.map((c, i) => (i === idx ? { ...c, [key]: value } : c));
-      // Calculate max zone across all controllers
-      const maxZone = Math.max(0, ...updated.map((c) => Number(c.zoneTo) || 0));
-      if (maxZone > 0) {
-        const clamped = Math.min(maxZone, MAX_ZONES);
-        setActiveZoneCount(clamped);
-        updateSystem("totalZones", String(maxZone));
-        setZones((prevZones) => {
-          const filled = prevZones.length >= clamped
-            ? prevZones
-            : [...prevZones, ...Array.from({ length: clamped - prevZones.length }, (_, i) => makeZone(prevZones.length + i + 1))];
-          // Assign each zone to the correct controller
-          return filled.map((z, zi) => {
-            const zoneNum = zi + 1;
-            for (const c of updated) {
-              const from = Number(c.zoneFrom) || 0;
-              const to = Number(c.zoneTo) || 0;
-              if (from > 0 && to > 0 && zoneNum >= from && zoneNum <= to) {
-                return { ...z, controllerId: c.id };
-              }
-            }
-            return z;
-          });
-        });
+    const updatedControllers = controllers.map((c, i) => (i === idx ? { ...c, [key]: value } : c));
+    setControllers(updatedControllers);
+    setZones((prevZones) => {
+      const allZones = [];
+      let globalId = 1;
+      for (const c of updatedControllers) {
+        const from = Number(c.zoneFrom) || 1;
+        const to = Number(c.zoneTo) || 0;
+        if (to >= from) {
+          const count = Math.min(to - from + 1, MAX_ZONES - allZones.length);
+          for (let zn = from; zn < from + count; zn++) {
+            const existing = prevZones.find((z) => z.controllerId === c.id && z.zoneNumber === zn);
+            allZones.push(existing ? { ...existing, id: globalId } : makeZone(globalId, c.id, zn));
+            globalId++;
+          }
+        }
       }
-      return updated;
+      return allZones;
     });
+    const total = updatedControllers.reduce((sum, c) => {
+      const from = Number(c.zoneFrom) || 1;
+      const to = Number(c.zoneTo) || 0;
+      return sum + (to >= from ? to - from + 1 : 0);
+    }, 0);
+    setActiveZoneCount(Math.min(total, MAX_ZONES));
   };
 
   const getGPS = (key, onSuccess) => {
@@ -687,7 +685,32 @@ export default function WetCheckApp({ onBackToDashboard }) {
   };
 
   const addController = () => { if (controllers.length < 10) setControllers((p) => [...p, makeController(p.length + 1)]); };
-  const removeController = (idx) => { if (controllers.length > 1) setControllers((p) => p.filter((_, i) => i !== idx).map((c, i) => ({ ...c, id: i + 1 }))); };
+  const removeController = (idx) => {
+    if (controllers.length <= 1) return;
+    const removedId = controllers[idx].id;
+    const remaining = controllers.filter((_, i) => i !== idx);
+    // Build old-id → new-id map for renumbering
+    const idMap = {};
+    remaining.forEach((c, i) => { idMap[c.id] = i + 1; });
+    const updatedControllers = remaining.map((c, i) => ({ ...c, id: i + 1 }));
+    setControllers(updatedControllers);
+    setZones((prevZones) => {
+      const filtered = prevZones.filter((z) => z.controllerId !== removedId);
+      const allZones = [];
+      let globalId = 1;
+      for (const c of updatedControllers) {
+        const czones = filtered.filter((z) => idMap[z.controllerId] === c.id);
+        czones.forEach((z) => { allZones.push({ ...z, id: globalId, controllerId: c.id }); globalId++; });
+      }
+      return allZones;
+    });
+    const total = updatedControllers.reduce((sum, c) => {
+      const from = Number(c.zoneFrom) || 1;
+      const to = Number(c.zoneTo) || 0;
+      return sum + (to >= from ? to - from + 1 : 0);
+    }, 0);
+    setActiveZoneCount(Math.min(total, MAX_ZONES));
+  };
   const addBackflow = () => { if (backflows.length < 6) setBackflows((p) => [...p, makeBackflow(p.length + 1)]); };
   const removeBackflow = (idx) => { if (backflows.length > 1) setBackflows((p) => p.filter((_, i) => i !== idx).map((b, i) => ({ ...b, id: i + 1 }))); };
 
@@ -725,12 +748,28 @@ export default function WetCheckApp({ onBackToDashboard }) {
 
   const groupedZones = useMemo(() => {
     const active = zones.slice(0, activeZoneCount);
-    if (groupBy === "none") return [{ label: null, zones: active }];
-    const key = groupBy === "area" ? (z) => z.area || "Unassigned" : (z) => `Controller ${z.controllerId || 1}`;
-    const map = {};
-    active.forEach((z, idx) => { const k = key(z); if (!map[k]) map[k] = []; map[k].push({ zone: z, idx }); });
-    return Object.entries(map).map(([label, items]) => ({ label, zones: items.map((i) => i.zone), indices: items.map((i) => i.idx) }));
-  }, [zones, activeZoneCount, groupBy]);
+    // Auto-group by controller when multiple controllers have zones, or when explicitly requested
+    const hasMultiCtrl = controllers.length > 1 && active.some((z) => z.controllerId !== active[0]?.controllerId);
+    if (hasMultiCtrl || groupBy === "controller") {
+      const map = {};
+      active.forEach((z, idx) => {
+        const k = `Controller ${z.controllerId || 1}`;
+        if (!map[k]) map[k] = [];
+        map[k].push({ zone: z, idx });
+      });
+      return Object.entries(map).map(([label, items]) => ({ label, zones: items.map((i) => i.zone), indices: items.map((i) => i.idx) }));
+    }
+    if (groupBy === "area") {
+      const map = {};
+      active.forEach((z, idx) => {
+        const k = z.area || "Unassigned";
+        if (!map[k]) map[k] = [];
+        map[k].push({ zone: z, idx });
+      });
+      return Object.entries(map).map(([label, items]) => ({ label, zones: items.map((i) => i.zone), indices: items.map((i) => i.idx) }));
+    }
+    return [{ label: null, zones: active }];
+  }, [zones, activeZoneCount, groupBy, controllers.length]);
 
   // ─── TEXT REPORT ───
 
@@ -1100,9 +1139,9 @@ export default function WetCheckApp({ onBackToDashboard }) {
               <div style={{ fontSize: 12, color: "#aaa", gridColumn: "1/-1" }}>Set Zone From / Zone To on each controller above to auto-create zones.</div>
             )}
           </div>
-          {controllers.some(c => c.zoneTo) && (
+          {controllers.some(c => c.zoneFrom && c.zoneTo) && (
             <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#1a3a5c" }}>
-              Total: {Math.max(0, ...controllers.map(c => Number(c.zoneTo) || 0))} zones across {controllers.filter(c => c.zoneTo).length} controller(s)
+              Total: {controllers.reduce((sum, c) => { const f = Number(c.zoneFrom)||1; const t = Number(c.zoneTo)||0; return sum + (t >= f ? t - f + 1 : 0); }, 0)} zones across {controllers.filter(c => c.zoneFrom && c.zoneTo).length} controller(s)
             </div>
           )}
         </div>
@@ -1175,9 +1214,16 @@ export default function WetCheckApp({ onBackToDashboard }) {
             ))}
           </div>}
         </div>
-        <div style={{ background: "#eee", borderRadius: 6, height: 6, marginBottom: 14, overflow: "hidden" }}>
+        {zones.length === 0 && (
+          <div style={{ textAlign: "center", padding: "36px 20px", color: "#888", background: "#f5f5f5", borderRadius: 12, marginBottom: 16 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>💧</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#555", marginBottom: 4 }}>No zones configured yet</div>
+            <div style={{ fontSize: 12 }}>Go back to System Overview and set Zone From / Zone To on each controller to auto-create zones.</div>
+          </div>
+        )}
+        {zones.length > 0 && <div style={{ background: "#eee", borderRadius: 6, height: 6, marginBottom: 14, overflow: "hidden" }}>
           <div style={{ width: `${progressPct}%`, height: "100%", background: "linear-gradient(90deg, #2d6da8, #1a3a5c)", borderRadius: 6, transition: "width 0.3s" }} />
-        </div>
+        </div>}
         {groupedZones.map((group, gi) => (
           <div key={gi}>
             {group.label && <div style={{ fontSize: 13, fontWeight: 700, color: "#1a3a5c", padding: "10px 0 6px", borderBottom: "1px solid #eee", marginBottom: 8 }}>{group.label} ({group.zones.length})</div>}
@@ -1192,7 +1238,7 @@ export default function WetCheckApp({ onBackToDashboard }) {
                 <div key={zone.id} style={{ ...S.zoneCard, borderLeft: `4px solid ${borderColor}` }}>
                   <div style={S.zoneHeader} onClick={() => toggleZoneExpand(zone.id)}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={S.zoneBadge}>Z{zone.id}</span>
+                      <span style={S.zoneBadge}>Z{zone.zoneNumber}</span>
                       <span style={{ fontSize: 12, color: "#888" }}>{zone.type || ""}</span>
                       {zone.area ? <span style={{ fontSize: 11, color: "#aaa" }}>• {zone.area}</span> : null}
                       {zone.lat && <span style={{ fontSize: 11, color: "#1a3a5c" }}>📍</span>}
@@ -1380,52 +1426,109 @@ export default function WetCheckApp({ onBackToDashboard }) {
             </>}
           </div>
 
-          {/* Zone Summary */}
+          {/* Zone Summary - per controller */}
           <div style={rS.section}>
             <div style={rS.heading}>Zone Inspection Summary</div>
-            <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
-              <div style={{ background: "#e8f0f8", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#1a3a5c" }}>{zonesOk.length}</div>
-                <div style={{ fontSize: 10, color: "#666" }}>OK</div>
-              </div>
-              <div style={{ background: "#ffebee", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#d32f2f" }}>{zonesIssue.length}</div>
-                <div style={{ fontSize: 10, color: "#666" }}>Issues</div>
-              </div>
-              <div style={{ background: "#f5f5f5", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#555" }}>{activeZoneCount}</div>
-                <div style={{ fontSize: 10, color: "#666" }}>Total</div>
-              </div>
-            </div>
-
-            {/* Zone table */}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
-                <thead>
-                  <tr style={{ background: "#1a3a5c", color: "#fff" }}>
-                    <th style={{ padding: "6px 8px", textAlign: "left" }}>Zone</th>
-                    <th style={{ padding: "6px 8px", textAlign: "left" }}>Type</th>
-                    <th style={{ padding: "6px 8px", textAlign: "center" }}>Heads</th>
-                    <th style={{ padding: "6px 8px", textAlign: "center" }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeZonesData.map((z) => {
-                    const issues = []; if (z.leak) issues.push("Leak"); if (z.broken) issues.push("Broken"); if (z.clogged) issues.push("Clogged"); if (z.misaligned) issues.push("Misaligned");
-                    const st = z.ok ? "OK" : issues.length ? issues.join(", ") : "—";
-                    const stColor = z.ok ? "#1a3a5c" : issues.length ? "#d32f2f" : "#999";
-                    return (
-                      <tr key={z.id} style={{ borderBottom: "1px solid #eee", background: z.id % 2 === 0 ? "#fafafa" : "#fff" }}>
-                        <td style={{ padding: "5px 8px", fontWeight: 600 }}>Z{z.id}{z.area ? ` — ${z.area}` : ""}</td>
-                        <td style={{ padding: "5px 8px" }}>{z.type || "—"}</td>
-                        <td style={{ padding: "5px 8px", textAlign: "center" }}>{z.heads || "—"}</td>
-                        <td style={{ padding: "5px 8px", textAlign: "center", color: stColor, fontWeight: 600 }}>{st}</td>
+            {controllers.length > 1 ? (
+              controllers.map((ctrl) => {
+                const ctrlZones = activeZonesData.filter((z) => z.controllerId === ctrl.id);
+                if (ctrlZones.length === 0) return null;
+                const ctrlOk = ctrlZones.filter((z) => z.ok).length;
+                const ctrlIssue = ctrlZones.filter((z) => z.leak || z.broken || z.clogged || z.misaligned).length;
+                return (
+                  <div key={ctrl.id} style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1a3a5c", marginBottom: 6, padding: "4px 8px", background: "#e8f0f8", borderRadius: 6 }}>
+                      Controller {ctrl.id}{ctrl.make ? ` — ${ctrl.make}` : ""}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <div style={{ background: "#e8f0f8", padding: "6px 12px", borderRadius: 8, textAlign: "center", flex: 1 }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#1a3a5c" }}>{ctrlOk}</div>
+                        <div style={{ fontSize: 10, color: "#666" }}>OK</div>
+                      </div>
+                      <div style={{ background: "#ffebee", padding: "6px 12px", borderRadius: 8, textAlign: "center", flex: 1 }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#d32f2f" }}>{ctrlIssue}</div>
+                        <div style={{ fontSize: 10, color: "#666" }}>Issues</div>
+                      </div>
+                      <div style={{ background: "#f5f5f5", padding: "6px 12px", borderRadius: 8, textAlign: "center", flex: 1 }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#555" }}>{ctrlZones.length}</div>
+                        <div style={{ fontSize: 10, color: "#666" }}>Total</div>
+                      </div>
+                    </div>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                        <thead>
+                          <tr style={{ background: "#1a3a5c", color: "#fff" }}>
+                            <th style={{ padding: "6px 8px", textAlign: "left" }}>Zone</th>
+                            <th style={{ padding: "6px 8px", textAlign: "left" }}>Type</th>
+                            <th style={{ padding: "6px 8px", textAlign: "center" }}>Heads</th>
+                            <th style={{ padding: "6px 8px", textAlign: "center" }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ctrlZones.map((z) => {
+                            const issues = []; if (z.leak) issues.push("Leak"); if (z.broken) issues.push("Broken"); if (z.clogged) issues.push("Clogged"); if (z.misaligned) issues.push("Misaligned");
+                            const st = z.ok ? "OK" : issues.length ? issues.join(", ") : "—";
+                            const stColor = z.ok ? "#1a3a5c" : issues.length ? "#d32f2f" : "#999";
+                            return (
+                              <tr key={z.id} style={{ borderBottom: "1px solid #eee", background: z.zoneNumber % 2 === 0 ? "#fafafa" : "#fff" }}>
+                                <td style={{ padding: "5px 8px", fontWeight: 600 }}>Z{z.zoneNumber}{z.area ? ` — ${z.area}` : ""}</td>
+                                <td style={{ padding: "5px 8px" }}>{z.type || "—"}</td>
+                                <td style={{ padding: "5px 8px", textAlign: "center" }}>{z.heads || "—"}</td>
+                                <td style={{ padding: "5px 8px", textAlign: "center", color: stColor, fontWeight: 600 }}>{st}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <>
+                <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+                  <div style={{ background: "#e8f0f8", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#1a3a5c" }}>{zonesOk.length}</div>
+                    <div style={{ fontSize: 10, color: "#666" }}>OK</div>
+                  </div>
+                  <div style={{ background: "#ffebee", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#d32f2f" }}>{zonesIssue.length}</div>
+                    <div style={{ fontSize: 10, color: "#666" }}>Issues</div>
+                  </div>
+                  <div style={{ background: "#f5f5f5", padding: "8px 16px", borderRadius: 8, textAlign: "center", flex: 1 }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#555" }}>{activeZoneCount}</div>
+                    <div style={{ fontSize: 10, color: "#666" }}>Total</div>
+                  </div>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ background: "#1a3a5c", color: "#fff" }}>
+                        <th style={{ padding: "6px 8px", textAlign: "left" }}>Zone</th>
+                        <th style={{ padding: "6px 8px", textAlign: "left" }}>Type</th>
+                        <th style={{ padding: "6px 8px", textAlign: "center" }}>Heads</th>
+                        <th style={{ padding: "6px 8px", textAlign: "center" }}>Status</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {activeZonesData.map((z) => {
+                        const issues = []; if (z.leak) issues.push("Leak"); if (z.broken) issues.push("Broken"); if (z.clogged) issues.push("Clogged"); if (z.misaligned) issues.push("Misaligned");
+                        const st = z.ok ? "OK" : issues.length ? issues.join(", ") : "—";
+                        const stColor = z.ok ? "#1a3a5c" : issues.length ? "#d32f2f" : "#999";
+                        return (
+                          <tr key={z.id} style={{ borderBottom: "1px solid #eee", background: z.zoneNumber % 2 === 0 ? "#fafafa" : "#fff" }}>
+                            <td style={{ padding: "5px 8px", fontWeight: 600 }}>Z{z.zoneNumber}{z.area ? ` — ${z.area}` : ""}</td>
+                            <td style={{ padding: "5px 8px" }}>{z.type || "—"}</td>
+                            <td style={{ padding: "5px 8px", textAlign: "center" }}>{z.heads || "—"}</td>
+                            <td style={{ padding: "5px 8px", textAlign: "center", color: stColor, fontWeight: 600 }}>{st}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Materials Summary */}
