@@ -251,22 +251,22 @@ function MultiPhotoUpload({ label, imgs, onAdd, onRemove }) {
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const img = new Image();
+    const imgEl = new Image();
     const reader = new FileReader();
     reader.onload = (ev) => {
-      img.onload = () => {
+      imgEl.onload = () => {
         const MAX = 800;
-        let w = img.width, h = img.height;
+        let w = imgEl.width, h = imgEl.height;
         if (w > MAX || h > MAX) {
           if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
           else { w = Math.round(w * MAX / h); h = MAX; }
         }
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
-        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        canvas.getContext("2d").drawImage(imgEl, 0, 0, w, h);
         onAdd(canvas.toDataURL("image/jpeg", 0.7));
       };
-      img.src = ev.target.result;
+      imgEl.src = ev.target.result;
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -280,15 +280,15 @@ function MultiPhotoUpload({ label, imgs, onAdd, onRemove }) {
         {imgs.map((src, i) => (
           <div key={i} style={{ position: "relative", display: "inline-block" }}>
             <img src={src} alt={`${label} ${i + 1}`} style={{ width: 80, height: 64, objectFit: "cover", borderRadius: 8, border: "1.5px solid #ddd" }} />
-            <button onClick={() => onRemove(i)} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: "none", background: "#d32f2f", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", lineHeight: "20px", padding: 0 }}>✕</button>
+            <button type="button" onClick={() => onRemove(i)} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: "none", background: "#d32f2f", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", lineHeight: "20px", padding: 0 }}>✕</button>
           </div>
         ))}
-        <button onClick={() => inputRef.current?.click()} style={{ width: 80, height: 64, borderRadius: 8, border: "2px dashed #ccc", background: "#fafafa", cursor: "pointer", color: "#aaa", fontSize: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <button type="button" onClick={() => inputRef.current?.click()} style={{ width: 80, height: 64, borderRadius: 8, border: "2px dashed #ccc", background: "#fafafa", cursor: "pointer", color: "#aaa", fontSize: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           📷
           <div style={{ fontSize: 9, color: "#aaa", marginTop: 2 }}>Add</div>
         </button>
       </div>
-      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+      <input ref={inputRef} type="file" accept="image/*" multiple onChange={(e) => { Array.from(e.target.files || []).forEach((file) => { const imgEl = new Image(); const reader = new FileReader(); reader.onload = (ev) => { imgEl.onload = () => { const MAX = 800; let w = imgEl.width, h = imgEl.height; if (w > MAX || h > MAX) { if (w > h) { h = Math.round(h * MAX / w); w = MAX; } else { w = Math.round(w * MAX / h); h = MAX; } } const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h; canvas.getContext("2d").drawImage(imgEl, 0, 0, w, h); onAdd(canvas.toDataURL("image/jpeg", 0.7)); }; imgEl.src = ev.target.result; }; reader.readAsDataURL(file); }); e.target.value = ""; }} style={{ display: "none" }} />
     </div>
   );
 }
