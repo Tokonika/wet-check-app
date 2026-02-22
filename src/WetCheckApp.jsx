@@ -611,6 +611,38 @@ export default function WetCheckApp({ onBackToDashboard }) {
   const updateController = (idx, k, v) => setControllers((prev) => prev.map((c, i) => (i === idx ? { ...c, [k]: v } : c)));
   const updateBackflow = (idx, k, v) => setBackflows((prev) => prev.map((b, i) => (i === idx ? { ...b, [k]: v } : b)));
 
+  // When Zone From or Zone To changes on any controller, auto-create zones and assign controllerId
+  const handleControllerZoneChange = (idx, key, value) => {
+    setControllers((prev) => {
+      const updated = prev.map((c, i) => (i === idx ? { ...c, [key]: value } : c));
+      // Calculate max zone across all controllers
+      const maxZone = Math.max(0, ...updated.map((c) => Number(c.zoneTo) || 0));
+      if (maxZone > 0) {
+        const clamped = Math.min(maxZone, MAX_ZONES);
+        setActiveZoneCount(clamped);
+        updateSystem("totalZones", String(maxZone));
+        setZones((prevZones) => {
+          const filled = prevZones.length >= clamped
+            ? prevZones
+            : [...prevZones, ...Array.from({ length: clamped - prevZones.length }, (_, i) => makeZone(prevZones.length + i + 1))];
+          // Assign each zone to the correct controller
+          return filled.map((z, zi) => {
+            const zoneNum = zi + 1;
+            for (const c of updated) {
+              const from = Number(c.zoneFrom) || 0;
+              const to = Number(c.zoneTo) || 0;
+              if (from > 0 && to > 0 && zoneNum >= from && zoneNum <= to) {
+                return { ...z, controllerId: c.id };
+              }
+            }
+            return z;
+          });
+        });
+      }
+      return updated;
+    });
+  };
+
   const getGPS = (key, onSuccess) => {
     if (!navigator.geolocation) { alert("Geolocation not supported"); return; }
     setLocating(key);
@@ -1037,9 +1069,14 @@ export default function WetCheckApp({ onBackToDashboard }) {
                 <Dropdown label="Type" value={ctrl.type} onChange={(v) => updateController(idx, "type", v)} options={CONTROLLER_TYPES} />
                 <Field label="Location" value={ctrl.location} onChange={(v) => updateController(idx, "location", v)} placeholder="Garage, Utility room..." />
                 <div style={S.grid2}>
-                  <Field label="Zone From" value={ctrl.zoneFrom} onChange={(v) => updateController(idx, "zoneFrom", v)} type="number" placeholder="1" />
-                  <Field label="Zone To" value={ctrl.zoneTo} onChange={(v) => updateController(idx, "zoneTo", v)} type="number" placeholder="12" />
+                  <Field label="Zone From" value={ctrl.zoneFrom} onChange={(v) => handleControllerZoneChange(idx, "zoneFrom", v)} type="number" placeholder="1" />
+                  <Field label="Zone To" value={ctrl.zoneTo} onChange={(v) => handleControllerZoneChange(idx, "zoneTo", v)} type="number" placeholder="12" />
                 </div>
+                {ctrl.zoneFrom && ctrl.zoneTo && Number(ctrl.zoneTo) >= Number(ctrl.zoneFrom) && (
+                  <div style={{ fontSize: 11, color: "#2d6da8", fontWeight: 600, marginBottom: 8 }}>
+                    {Number(ctrl.zoneTo) - Number(ctrl.zoneFrom) + 1} zones (Z{ctrl.zoneFrom}–Z{ctrl.zoneTo})
+                  </div>
+                )}
                 <LocationBtn lat={ctrl.lat} lng={ctrl.lng} locating={locating === `ctrl-${ctrl.id}`} onLocate={() => fetchControllerLocation(idx, ctrl.id)} locationImg={ctrl.locationImg} onPhotoUpload={(img) => updateController(idx, "locationImg", img)} onPhotoRemove={() => updateController(idx, "locationImg", null)} />
               </div>}
             </div>
@@ -1048,11 +1085,26 @@ export default function WetCheckApp({ onBackToDashboard }) {
         {(isCommercial || controllers.length === 0) && controllers.length < 10 && (
           <button onClick={addController} style={S.addBtn}>+ Add Controller</button>
         )}
-        <div style={{ ...S.card, marginTop: 12 }}>
+        <div style={{ ...S.card, marginTop: 12, background: "#f0f4f8" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8 }}>Zone Summary (auto-calculated)</div>
           <div style={S.grid2}>
-            <Field label="Total Zones" value={system.totalZones} onChange={(v) => { updateSystem("totalZones", v); const n = Number(v); if (n > 0) ensureZones(Math.min(n, MAX_ZONES)); }} type="number" />
-            <Field label="Active Zones" value={system.activeZones} onChange={(v) => { updateSystem("activeZones", v); const n = Number(v); if (n > 0) ensureZones(Math.min(n, MAX_ZONES)); }} type="number" />
+            {controllers.filter(c => c.zoneFrom && c.zoneTo).length > 0 ? (
+              controllers.filter(c => c.zoneFrom && c.zoneTo).map((c) => (
+                <div key={c.id} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: "1px solid #dde" }}>
+                  <div style={{ fontSize: 11, color: "#888" }}>Controller {c.id}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#1a3a5c" }}>{Math.max(0, Number(c.zoneTo) - Number(c.zoneFrom) + 1)}</div>
+                  <div style={{ fontSize: 10, color: "#aaa" }}>Z{c.zoneFrom}–Z{c.zoneTo}</div>
+                </div>
+              ))
+            ) : (
+              <div style={{ fontSize: 12, color: "#aaa", gridColumn: "1/-1" }}>Set Zone From / Zone To on each controller above to auto-create zones.</div>
+            )}
           </div>
+          {controllers.some(c => c.zoneTo) && (
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "#1a3a5c" }}>
+              Total: {Math.max(0, ...controllers.map(c => Number(c.zoneTo) || 0))} zones across {controllers.filter(c => c.zoneTo).length} controller(s)
+            </div>
+          )}
         </div>
         <div style={{ ...S.divider, margin: "14px 0" }} />
         <SectionHead title="💧 Water Supply" collapsible open={waterOpen} onToggle={() => setWaterOpen(!waterOpen)} />
