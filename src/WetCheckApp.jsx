@@ -79,7 +79,7 @@ const makeZone = (id) => ({
   id, type: "", headType: "", heads: "", psi: "", ok: false,
   leak: false, broken: false, clogged: false, misaligned: false,
   notes: "", area: "", controllerId: 1,
-  beforeImg: null, afterImg: null,
+  beforeImgs: [], afterImgs: [],
   lat: null, lng: null, locationImg: null,
   materials: [], // [{ part: "4\" Pop-up Spray Head", qty: 3 }, ...]
 });
@@ -110,8 +110,8 @@ function stripImagesFromState(data) {
   if (clone.zones) {
     clone.zones = clone.zones.map((z) => ({
       ...z,
-      beforeImg: null,
-      afterImg: null,
+      beforeImgs: [],
+      afterImgs: [],
       locationImg: null,
     }));
   }
@@ -240,6 +240,53 @@ function PhotoUpload({ label, src, onUpload, onRemove }) {
           <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>Tap to add</div>
         </button>
       )}
+      <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{ display: "none" }} />
+    </div>
+  );
+}
+
+function MultiPhotoUpload({ label, imgs, onAdd, onRemove }) {
+  const inputRef = useRef(null);
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        onAdd(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+  return (
+    <div style={{ flex: 1 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#555", marginBottom: 6, textAlign: "center" }}>
+        {label} {imgs.length > 0 ? `(${imgs.length})` : ""}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+        {imgs.map((src, i) => (
+          <div key={i} style={{ position: "relative", display: "inline-block" }}>
+            <img src={src} alt={`${label} ${i + 1}`} style={{ width: 80, height: 64, objectFit: "cover", borderRadius: 8, border: "1.5px solid #ddd" }} />
+            <button onClick={() => onRemove(i)} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: "none", background: "#d32f2f", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", lineHeight: "20px", padding: 0 }}>✕</button>
+          </div>
+        ))}
+        <button onClick={() => inputRef.current?.click()} style={{ width: 80, height: 64, borderRadius: 8, border: "2px dashed #ccc", background: "#fafafa", cursor: "pointer", color: "#aaa", fontSize: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          📷
+          <div style={{ fontSize: 9, color: "#aaa", marginTop: 2 }}>Add</div>
+        </button>
+      </div>
       <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{ display: "none" }} />
     </div>
   );
@@ -1098,7 +1145,7 @@ export default function WetCheckApp({ onBackToDashboard }) {
                       {zone.area ? <span style={{ fontSize: 11, color: "#aaa" }}>• {zone.area}</span> : null}
                       {zone.lat && <span style={{ fontSize: 11, color: "#1a3a5c" }}>📍</span>}
                       {zone.materials.length > 0 && <span style={{ fontSize: 11, color: "#1a3a5c" }}>🔧{zone.materials.length}</span>}
-                      {(zone.beforeImg || zone.afterImg) && <span style={{ fontSize: 11, color: "#1a3a5c" }}>📷</span>}
+                      {((zone.beforeImgs?.length || 0) + (zone.afterImgs?.length || 0) > 0) && <span style={{ fontSize: 11, color: "#1a3a5c" }}>📷{(zone.beforeImgs?.length || 0) + (zone.afterImgs?.length || 0)}</span>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, background: statusColor + "18", padding: "2px 10px", borderRadius: 12 }}>{statusLabel}</span>
@@ -1158,9 +1205,19 @@ export default function WetCheckApp({ onBackToDashboard }) {
                       <button onClick={() => updateZone(idx, "materials", [...zone.materials, { part: "", qty: 1 }])} style={{ ...S.addBtn, padding: 8, fontSize: 12, marginTop: 4 }}>+ Add Part</button>
                     </div>
 
-                    <div style={{ display: "flex", gap: 12, marginTop: 10, justifyContent: "center" }}>
-                      <PhotoUpload label="Before" src={zone.beforeImg} onUpload={(data) => updateZone(idx, "beforeImg", data)} onRemove={() => updateZone(idx, "beforeImg", null)} />
-                      <PhotoUpload label="After" src={zone.afterImg} onUpload={(data) => updateZone(idx, "afterImg", data)} onRemove={() => updateZone(idx, "afterImg", null)} />
+                    <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
+                      <MultiPhotoUpload
+                        label="Before"
+                        imgs={zone.beforeImgs || []}
+                        onAdd={(data) => updateZone(idx, "beforeImgs", [...(zone.beforeImgs || []), data])}
+                        onRemove={(i) => updateZone(idx, "beforeImgs", (zone.beforeImgs || []).filter((_, j) => j !== i))}
+                      />
+                      <MultiPhotoUpload
+                        label="After"
+                        imgs={zone.afterImgs || []}
+                        onAdd={(data) => updateZone(idx, "afterImgs", [...(zone.afterImgs || []), data])}
+                        onRemove={(i) => updateZone(idx, "afterImgs", (zone.afterImgs || []).filter((_, j) => j !== i))}
+                      />
                     </div>
                   </div>}
                 </div>
