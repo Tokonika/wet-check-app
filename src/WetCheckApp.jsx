@@ -247,7 +247,6 @@ function PhotoUpload({ label, src, onUpload, onRemove }) {
 }
 
 function MultiPhotoUpload({ label, imgs, onAdd, onRemove }) {
-  const uid = useRef(`mph-${Math.random().toString(36).slice(2)}`).current;
   const handleFiles = (e) => {
     Array.from(e.target.files || []).forEach((file) => {
       const imgEl = new Image();
@@ -283,12 +282,14 @@ function MultiPhotoUpload({ label, imgs, onAdd, onRemove }) {
             <button type="button" onClick={() => onRemove(i)} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: "none", background: "#d32f2f", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", lineHeight: "20px", padding: 0 }}>✕</button>
           </div>
         ))}
-        <label htmlFor={uid} style={{ width: 80, height: 64, borderRadius: 8, border: "2px dashed #ccc", background: "#fafafa", cursor: "pointer", color: "#aaa", fontSize: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          📷
-          <div style={{ fontSize: 9, color: "#aaa", marginTop: 2 }}>Add</div>
-        </label>
+        <div style={{ position: "relative", width: 80, height: 64 }}>
+          <div style={{ width: 80, height: 64, borderRadius: 8, border: "2px dashed #ccc", background: "#fafafa", color: "#aaa", fontSize: 20, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+            📷
+            <div style={{ fontSize: 9, marginTop: 2 }}>Add</div>
+          </div>
+          <input type="file" accept="image/*" multiple onChange={handleFiles} style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", cursor: "pointer" }} />
+        </div>
       </div>
-      <input id={uid} type="file" accept="image/*" multiple onChange={handleFiles} style={{ display: "none" }} />
     </div>
   );
 }
