@@ -288,7 +288,7 @@ function MultiPhotoUpload({ label, imgs, onAdd, onRemove }) {
           <div style={{ fontSize: 9, color: "#aaa", marginTop: 2 }}>Add</div>
         </button>
       </div>
-      <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{ display: "none" }} />
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
     </div>
   );
 }
@@ -609,6 +609,8 @@ export default function WetCheckApp({ onBackToDashboard }) {
   const updateSystem = (k, v) => setSystem((p) => ({ ...p, [k]: v }));
   const updateObs = (k) => setObservations((p) => ({ ...p, [k]: !p[k] }));
   const updateZone = (idx, k, v) => setZones((prev) => prev.map((z, i) => (i === idx ? { ...z, [k]: v } : z)));
+  const appendZoneImg = (idx, field, data) => setZones((prev) => prev.map((z, i) => i === idx ? { ...z, [field]: [...(z[field] || []), data] } : z));
+  const removeZoneImg = (idx, field, imgIdx) => setZones((prev) => prev.map((z, i) => i === idx ? { ...z, [field]: (z[field] || []).filter((_, k) => k !== imgIdx) } : z));
   const updateController = (idx, k, v) => setControllers((prev) => prev.map((c, i) => (i === idx ? { ...c, [k]: v } : c)));
   const updateBackflow = (idx, k, v) => setBackflows((prev) => prev.map((b, i) => (i === idx ? { ...b, [k]: v } : b)));
 
@@ -1307,14 +1309,14 @@ export default function WetCheckApp({ onBackToDashboard }) {
                       <MultiPhotoUpload
                         label="Before"
                         imgs={zone.beforeImgs || []}
-                        onAdd={(data) => updateZone(idx, "beforeImgs", [...(zone.beforeImgs || []), data])}
-                        onRemove={(i) => updateZone(idx, "beforeImgs", (zone.beforeImgs || []).filter((_, j) => j !== i))}
+                        onAdd={(data) => appendZoneImg(idx, "beforeImgs", data)}
+                        onRemove={(imgIdx) => removeZoneImg(idx, "beforeImgs", imgIdx)}
                       />
                       <MultiPhotoUpload
                         label="After"
                         imgs={zone.afterImgs || []}
-                        onAdd={(data) => updateZone(idx, "afterImgs", [...(zone.afterImgs || []), data])}
-                        onRemove={(i) => updateZone(idx, "afterImgs", (zone.afterImgs || []).filter((_, j) => j !== i))}
+                        onAdd={(data) => appendZoneImg(idx, "afterImgs", data)}
+                        onRemove={(imgIdx) => removeZoneImg(idx, "afterImgs", imgIdx)}
                       />
                     </div>
                   </div>}
